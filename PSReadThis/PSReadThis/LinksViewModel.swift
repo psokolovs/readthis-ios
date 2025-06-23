@@ -22,7 +22,7 @@ enum LinkFilter: String, CaseIterable {
 
 @MainActor
 class LinksViewModel: ObservableObject {
-    private let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
+    // Using secure PSReadThisConfig for key management
     
     @Published var links: [Link] = []
     @Published var isLoading = false
@@ -89,10 +89,11 @@ class LinksViewModel: ObservableObject {
                 let paginatedUrlString = urlString + "&or=(updated_at.lt.\(encodedTimestamp),and(updated_at.eq.\(encodedTimestamp),id.lt.\(lastLinkId)))"
                 url = URL(string: paginatedUrlString)!
             }
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             // Add prefer header to handle RLS properly
@@ -225,10 +226,11 @@ class LinksViewModel: ObservableObject {
     private func testQuery(name: String, url: String, token: String) async {
         print("[LinksViewModel] Testing: \(name)")
         do {
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
             var request = URLRequest(url: URL(string: url)!)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -269,7 +271,8 @@ class LinksViewModel: ObservableObject {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let body = ["raw_url": testUrl, "list": "read", "user_id": userId]
@@ -367,7 +370,8 @@ class LinksViewModel: ObservableObject {
                 var request = URLRequest(url: endpoint)
                 request.httpMethod = "PATCH"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+                let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
                 
@@ -442,26 +446,27 @@ class LinksViewModel: ObservableObject {
     private func postLinkFromQueue(rawUrl: String, status: String, userId: String, token: String) async -> Bool {
         print("[LinksViewModel] 📡 Syncing from queue: \(rawUrl) → \(status)")
         
-        // Use Supabase UPSERT - single call handles both insert and update
-        let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 10.0
-        
-        let body = [
-            "raw_url": rawUrl, 
-            "list": "read", 
-            "status": status,
-            "user_id": userId
-        ]
-        request.httpBody = try? JSONEncoder().encode(body)
-        
         do {
+            // Use Supabase UPSERT - single call handles both insert and update
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = 10.0
+        
+            let body = [
+                "raw_url": rawUrl, 
+                "list": "read", 
+                "status": status,
+                "user_id": userId
+            ]
+            request.httpBody = try JSONEncoder().encode(body)
+            
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
                 print("[LinksViewModel] 📡 Queue sync result: \(http.statusCode)")
@@ -476,10 +481,11 @@ class LinksViewModel: ObservableObject {
                 }
                 return false
             }
+            return false
         } catch {
             print("[LinksViewModel] 🌐 Queue sync network error: \(error)")
+            return false
         }
-        return false
     }
     
     // Quick update status for conflicting entries
@@ -489,28 +495,30 @@ class LinksViewModel: ObservableObject {
             return false
         }
         
-        let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(encodedUserId)&raw_url=eq.\(encodedUrl)")!
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "PATCH"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 5.0
-        
-        let body = ["status": status]
-        request.httpBody = try? JSONEncoder().encode(body)
-        
         do {
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(encodedUserId)&raw_url=eq.\(encodedUrl)")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "PATCH"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = 5.0
+            
+            let body = ["status": status]
+            request.httpBody = try JSONEncoder().encode(body)
+            
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
                 print("[LinksViewModel] 📡 Queue quick update: \(http.statusCode)")
                 return http.statusCode == 204
             }
+            return false
         } catch {
             print("[LinksViewModel] 🌐 Queue quick update error: \(error)")
+            return false
         }
-        return false
     }
 }
 
@@ -573,7 +581,8 @@ extension LinksViewModel {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let body = ["link_id": link.id]
@@ -608,7 +617,8 @@ extension LinksViewModel {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "DELETE"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -636,7 +646,8 @@ extension LinksViewModel {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "PATCH"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            let anonKey = try await PSReadThisConfig.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
             

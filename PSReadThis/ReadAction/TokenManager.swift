@@ -11,10 +11,38 @@ final class TokenManager {
     private let expiresAtKey    = "PSReadThisExpiresAt"  // stored in UserDefaults
 
     // Replace with your own values:
-    let supabaseURL     = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co")!
-    let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
+    let supabaseURL = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co")!
+    private let configURL = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/storage/v1/object/public/psreadthis/psreadthis-config.json")!
+    private var cachedAnonKey: String?
 
     // MARK: – Public API
+
+    func getAnonKey() async throws -> String {
+        if let cached = cachedAnonKey {
+            return cached
+        }
+        
+        // Try UserDefaults cache
+        if let cached = UserDefaults.standard.string(forKey: "PSReadThisAnonKey") {
+            cachedAnonKey = cached
+            return cached
+        }
+        
+        // Fetch from remote config
+        let (data, response) = try await URLSession.shared.data(from: configURL)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+        
+        let config = try JSONDecoder().decode([String: String].self, from: data)
+        guard let key = config["anonKey"] else {
+            throw URLError(.cannotParseResponse)
+        }
+        
+        cachedAnonKey = key
+        UserDefaults.standard.set(key, forKey: "PSReadThisAnonKey")
+        return key
+    }
 
     /// Returns a valid access token, auto-refreshing or re-logging-in as needed.
     func getValidAccessToken() async throws -> String {
@@ -46,7 +74,8 @@ final class TokenManager {
         var req = URLRequest(url: loginURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+        let anonKey = try await getAnonKey()
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
 
         print("[PSReadThis] 🔐 login() HTTP Method: \(req.httpMethod ?? "nil")")
         print("[PSReadThis] 🔐 login() Headers: \(req.allHTTPHeaderFields ?? [:])")
@@ -89,7 +118,8 @@ final class TokenManager {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue(supabaseAnonKey,       forHTTPHeaderField: "apikey")
+        let anonKey = try await getAnonKey()
+        req.setValue(anonKey, forHTTPHeaderField: "apikey")
         let body = ["refresh_token": refreshToken]
         req.httpBody = try JSONEncoder().encode(body)
 

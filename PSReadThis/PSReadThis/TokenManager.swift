@@ -39,23 +39,18 @@ actor TokenManager {
 
   private func loadAnonKeyIfNeeded() async throws {
     print("[PSReadThis] !! 🔑 loadAnonKeyIfNeeded() start (extension)")
+    if anonKey != nil { return }
     
-    // TEMPORARY FIX: Force clear any cached old key and use updated hardcoded key
+    // Force clear any cached old key to ensure we get the fresh key from remote
     UserDefaults.standard.removeObject(forKey: "PSReadThisAnonKey")
-    let updatedKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
-    anonKey = updatedKey
-    print("[PSReadThis] 🔑 Using updated hardcoded anonKey (cache cleared):", updatedKey)
-    UserDefaults.standard.set(updatedKey, forKey: "PSReadThisAnonKey")
-    return
     
-    // Original remote loading code (commented out temporarily)
-    /*
-    // Try cached
+    // Try cached (only after clearing old cache)
     if let cached = UserDefaults.standard.string(forKey: "PSReadThisAnonKey") {
       anonKey = cached
       print("[PSReadThis] 🔑 Using cached anonKey in extension:", cached)
       return
     }
+    
     // Fetch from remote
     let (data, res) = try await URLSession.shared.data(from: configURL)
     guard let http = res as? HTTPURLResponse, http.statusCode == 200 else {
@@ -68,7 +63,6 @@ actor TokenManager {
     anonKey = key
     print("[PSReadThis] 🔑 Loaded anonKey in extension:", key)
     UserDefaults.standard.set(key, forKey: "PSReadThisAnonKey")
-    */
   }
 
   // MARK: - Login / Refresh

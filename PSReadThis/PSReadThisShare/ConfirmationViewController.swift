@@ -324,30 +324,31 @@ class ConfirmationViewController: UIViewController {
     }
 
     private func postLink(rawUrl: String, status: String, token: String) async -> Bool {
-        // Extract user ID from token
-        let userId = extractUserIdFromToken(token) ?? "unknown"
-        print("[ConfirmationVC] 📡 Fast UPSERT: \(rawUrl) → \(status)")
-        
-        // Use Supabase UPSERT - single call handles both insert and update
-        let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
-        request.setValue(TokenManager.shared.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 8.0  // Fast timeout for share extensions
-        
-        let body = [
-            "raw_url": rawUrl, 
-            "list": "read", 
-            "status": status,  // Use status from queue metadata
-            "user_id": userId
-        ]
-        request.httpBody = try? JSONEncoder().encode(body)
-
         do {
+            // Extract user ID from token
+            let userId = extractUserIdFromToken(token) ?? "unknown"
+            print("[ConfirmationVC] 📡 Fast UPSERT: \(rawUrl) → \(status)")
+            
+            // Use Supabase UPSERT - single call handles both insert and update
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
+            let anonKey = try await TokenManager.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = 8.0  // Fast timeout for share extensions
+            
+            let body = [
+                "raw_url": rawUrl, 
+                "list": "read", 
+                "status": status,  // Use status from queue metadata
+                "user_id": userId
+            ]
+            request.httpBody = try JSONEncoder().encode(body)
+
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
                 print("[ConfirmationVC] 📡 UPSERT result: \(http.statusCode)")
@@ -369,33 +370,35 @@ class ConfirmationViewController: UIViewController {
     }
     
     private func quickUpdateStatus(rawUrl: String, status: String, userId: String, token: String) async -> Bool {
-        guard let encodedUserId = userId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let encodedUrl = rawUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return false
-        }
-        
-        let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(encodedUserId)&raw_url=eq.\(encodedUrl)")!
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "PATCH"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.setValue(TokenManager.shared.supabaseAnonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 5.0
-        
-        let body = ["status": status]
-        request.httpBody = try? JSONEncoder().encode(body)
-        
         do {
+            guard let encodedUserId = userId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                  let encodedUrl = rawUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+                return false
+            }
+            
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(encodedUserId)&raw_url=eq.\(encodedUrl)")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "PATCH"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            let anonKey = try await TokenManager.shared.getAnonKey()
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = 5.0
+            
+            let body = ["status": status]
+            request.httpBody = try JSONEncoder().encode(body)
+        
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
                 print("[ConfirmationVC] 📡 Quick update: \(http.statusCode)")
                 return http.statusCode == 204
             }
+            return false
         } catch {
             print("[ConfirmationVC] 🌐 Quick update error: \(error)")
+            return false
         }
-        return false
     }
     
     // Helper function to extract user ID from JWT token
