@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum LinkFilter: String, CaseIterable {
     case all = "all"
@@ -21,6 +22,8 @@ enum LinkFilter: String, CaseIterable {
 
 @MainActor
 class LinksViewModel: ObservableObject {
+    private let supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
+    
     @Published var links: [Link] = []
     @Published var isLoading = false
     @Published var hasMore = true
@@ -89,7 +92,7 @@ class LinksViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             // Add prefer header to handle RLS properly
@@ -225,7 +228,7 @@ class LinksViewModel: ObservableObject {
             var request = URLRequest(url: URL(string: url)!)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -266,7 +269,7 @@ class LinksViewModel: ObservableObject {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
             let body = ["raw_url": testUrl, "list": "read", "user_id": userId]
@@ -313,6 +316,7 @@ class LinksViewModel: ObservableObject {
                     raw_url: link.raw_url,
                     resolved_url: link.resolved_url,
                     title: link.title,
+                    description: link.description,
                     list: link.list,
                     status: "read", // Update status to read
                     device_saved: link.device_saved,
@@ -363,7 +367,7 @@ class LinksViewModel: ObservableObject {
                 var request = URLRequest(url: endpoint)
                 request.httpMethod = "PATCH"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+                request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
                 request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                 request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
                 
@@ -445,7 +449,7 @@ class LinksViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
         request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
-        request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 10.0
         
@@ -490,7 +494,7 @@ class LinksViewModel: ObservableObject {
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-        request.setValue("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U", forHTTPHeaderField: "apikey")
+        request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 5.0
         
@@ -507,5 +511,161 @@ class LinksViewModel: ObservableObject {
             print("[LinksViewModel] 🌐 Queue quick update error: \(error)")
         }
         return false
+    }
+}
+
+// MARK: - Enhanced Link Actions
+
+extension LinksViewModel {
+    
+    /// Handle all link actions from the enhanced card view
+    func handleLinkAction(_ action: LinkAction, for link: Link) async {
+        switch action {
+        case .toggleStar:
+            await toggleStar(link)
+        case .markRead:
+            await markAsRead(link)
+        case .copyLink:
+            copyLinkToClipboard(link)
+        case .resolve:
+            await resolveLink(link)
+        case .delete:
+            await deleteLink(link)
+        }
+    }
+    
+    /// Toggle star status for newsletter inclusion
+    func toggleStar(_ link: Link) async {
+        print("[LinksViewModel] Toggling star for link: \(link.id)")
+        
+        let updatedLink = link.withToggledStar()
+        
+        // 1. Update UI immediately for responsive feel
+        if let index = links.firstIndex(where: { $0.id == link.id }) {
+            links[index] = updatedLink
+            print("[LinksViewModel] Updated star status in UI: \(updatedLink.isStarred)")
+        }
+        
+        // 2. Sync with database
+        await updateLinkTitle(linkId: link.id, newTitle: updatedLink.title ?? "")
+    }
+    
+    /// Copy link URL to clipboard
+    func copyLinkToClipboard(_ link: Link) {
+        let urlToCopy = link.resolved_url ?? link.raw_url ?? ""
+        UIPasteboard.general.string = urlToCopy
+        print("[LinksViewModel] Copied to clipboard: \(urlToCopy)")
+        
+        // Could add haptic feedback here
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+    }
+    
+    /// Resolve/refresh link metadata
+    func resolveLink(_ link: Link) async {
+        print("[LinksViewModel] Resolving link: \(link.id)")
+        
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            
+            // Call your metadata resolution endpoint
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/rpc/resolve_link_metadata")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            let body = ["link_id": link.id]
+            request.httpBody = try JSONEncoder().encode(body)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                print("[LinksViewModel] ✅ Link resolved successfully")
+                // Refresh the link data
+                await fetchLinks(reset: true)
+            } else {
+                print("[LinksViewModel] ❌ Failed to resolve link")
+            }
+        } catch {
+            print("[LinksViewModel] Error resolving link: \(error)")
+        }
+    }
+    
+    /// Delete a link permanently
+    func deleteLink(_ link: Link) async {
+        print("[LinksViewModel] Deleting link: \(link.id)")
+        
+        // 1. Remove from UI immediately
+        links.removeAll { $0.id == link.id }
+        
+        // 2. Delete from database
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(link.id)")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "DELETE"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                print("[LinksViewModel] ✅ Link deleted successfully")
+            } else {
+                print("[LinksViewModel] ❌ Failed to delete link, reverting UI")
+                // Revert by refreshing
+                await fetchLinks(reset: true)
+            }
+        } catch {
+            print("[LinksViewModel] Error deleting link: \(error)")
+            // Revert by refreshing
+            await fetchLinks(reset: true)
+        }
+    }
+    
+    /// Update link title in database (for star toggling)
+    private func updateLinkTitle(linkId: String, newTitle: String) async {
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(linkId)")!
+            
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "PATCH"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(supabaseAnonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            
+            let body = ["title": newTitle]
+            request.httpBody = try JSONEncoder().encode(body)
+            
+            let (_, response) = try await URLSession.shared.data(for: request)
+            
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                print("[LinksViewModel] Failed to update title: \(http.statusCode)")
+                // Revert local change on failure
+                await fetchLinks(reset: true)
+            } else {
+                print("[LinksViewModel] ✅ Successfully updated title")
+            }
+        } catch {
+            print("[LinksViewModel] Error updating title: \(error)")
+            // Revert local change on failure
+            await fetchLinks(reset: true)
+        }
+    }
+    
+    /// Get starred links count for UI display
+    func getStarredCount() -> Int {
+        return links.filter { $0.isStarred }.count
+    }
+    
+    /// Filter links by starred status
+    func getStarredLinks() -> [Link] {
+        return links.filter { $0.isStarred }
     }
 } 

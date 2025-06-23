@@ -238,7 +238,11 @@ struct LinksList: View {
                 LinkCardView(
                     link: link,
                     onTap: { onTap(link) },
-                    onMarkAsRead: { onMarkAsRead(link) }
+                    onAction: { action in
+                        Task {
+                            await viewModel.handleLinkAction(action, for: link)
+                        }
+                    }
                 )
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -271,157 +275,330 @@ struct LoadingView: View {
 }
 
 // MARK: - Link Card View
+enum LinkAction {
+    case toggleStar
+    case markRead
+    case copyLink
+    case resolve
+    case delete
+}
+
 struct LinkCardView: View {
     let link: Link
     let onTap: () -> Void
-    let onMarkAsRead: () -> Void
+    let onAction: (LinkAction) -> Void
     
-    @State private var offset: CGFloat = 0
-    @State private var isMarkingAsRead = false
+    @State private var dragOffset: CGFloat = 0
     @State private var swipeProgress: Double = 0
-    @State private var hasShownVisualFeedback = false  // Track if user saw visual feedback
-    
-    private let swipeThreshold: CGFloat = -180  // Increased from -140 (much less sensitive)
-    private let maxSwipeDistance: CGFloat = 200  // Increased proportionally
+    @State private var swipeDirection: SwipeDirection = .none
+    @State private var isProcessingAction = false
+    @State private var showingDeleteConfirmation = false
     
     var body: some View {
         ZStack {
-            SwipeActionBackground(
+            // Background indicators for swipe actions
+            SwipeIndicatorView(
+                direction: swipeDirection,
                 progress: swipeProgress,
-                isCompleting: isMarkingAsRead
+                dragOffset: dragOffset,
+                link: link
             )
             
-            LinkCardContent(
+            // Main card content
+            EnhancedLinkCardContent(
                 link: link,
-                isMarkingAsRead: isMarkingAsRead
+                isProcessingAction: isProcessingAction
             )
-            .offset(x: offset)
+            .offset(x: dragOffset)
+            .scaleEffect(isProcessingAction ? 0.95 : 1.0)
             .onTapGesture { onTap() }
-            .gesture(swipeGesture)
+            .gesture(createGestureSystem())
+            .contextMenu {
+                createContextMenu()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: dragOffset)
+        .animation(.spring(response: 0.2), value: isProcessingAction)
+        .alert("Delete Link", isPresented: $showingDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                onAction(.delete)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this link? This action cannot be undone.")
+        }
     }
     
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 30)  // Increased from 20 (less accidental triggers)
+    private func createGestureSystem() -> some Gesture {
+        DragGesture(minimumDistance: 20)
             .onChanged { value in
-                if value.translation.width < 0 {
-                    // Progressive resistance as user swipes further
-                    let rawProgress = min(abs(value.translation.width) / maxSwipeDistance, 1.0)
-                    swipeProgress = rawProgress
+                let translation = value.translation.width
+                
+                // Determine swipe direction and progress
+                if abs(translation) > 10 {
+                    swipeDirection = translation < 0 ? .left : .right
+                    let maxDistance: CGFloat = 120
+                    swipeProgress = min(abs(translation) / maxDistance, 1.0)
                     
-                    // Track if user has seen meaningful visual feedback (20% progress)
-                    if rawProgress > 0.2 {
-                        hasShownVisualFeedback = true
-                    }
-                    
-                    // Apply resistance curve - easier at start, harder at end
-                    let resistanceFactor = 1 - (rawProgress * 0.3)
-                    offset = value.translation.width * resistanceFactor
+                    // Apply resistance curve for natural feel
+                    let resistanceFactor = 1 - (swipeProgress * 0.2)
+                    dragOffset = translation * resistanceFactor
+                } else {
+                    swipeDirection = .none
+                    swipeProgress = 0
+                    dragOffset = 0
                 }
             }
             .onEnded { value in
-                let swipeDistance = abs(value.translation.width)
-                let velocity = abs(value.predictedEndTranslation.width - value.translation.width)
+                let translation = value.translation.width
+                let velocity = abs(value.velocity.width)
+                let distance = abs(translation)
                 
-                // Trigger mark as read ONLY if user swiped far enough OR fast enough AND saw visual feedback
-                if (swipeDistance > abs(swipeThreshold) || velocity > 120) && hasShownVisualFeedback {
-                    performMarkAsReadWithAnimation()
+                // Determine if action should trigger (increased threshold for longer swipes)
+                let shouldTrigger = distance > 80 || velocity > 500
+                
+                if shouldTrigger {
+                    let action: LinkAction
+                    
+                    if translation < 0 {
+                        // Left swipe actions
+                        action = distance > 130 || velocity > 800 ? .delete : .markRead
+                    } else {
+                        // Right swipe actions  
+                        if link.status == "read" {
+                            // Only allow star/copy actions for read items
+                            action = distance > 130 || velocity > 800 ? .copyLink : .toggleStar
+                        } else {
+                            // For unread items, only copy link action
+                            action = .copyLink
+                        }
+                    }
+                    
+                    performAction(action)
                 } else {
-                    // Bounce back with spring animation
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        offset = 0
-                        swipeProgress = 0
-                        hasShownVisualFeedback = false  // Reset feedback flag
+                    // Reset position
+                    resetSwipeState()
+                }
+            }
+    }
+    
+    private func performAction(_ action: LinkAction) {
+        if action == .delete {
+            // Show confirmation for delete
+            resetSwipeState()
+            showingDeleteConfirmation = true
+        } else {
+            // Execute other actions immediately
+            isProcessingAction = true
+            
+            // Animate to completion
+            withAnimation(.spring(response: 0.3)) {
+                dragOffset = swipeDirection == .left ? -UIScreen.main.bounds.width : UIScreen.main.bounds.width
+                swipeProgress = 1.0
+            }
+            
+            // Execute action after animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                onAction(action)
+                
+                // Reset state
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    resetSwipeState()
+                }
+            }
+        }
+    }
+    
+    private func resetSwipeState() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            dragOffset = 0
+            swipeProgress = 0
+            swipeDirection = .none
+            isProcessingAction = false
+        }
+    }
+    
+    private func createContextMenu() -> some View {
+        Group {
+            // Only show star option for read items
+            if link.status == "read" {
+                Button(action: { onAction(.toggleStar) }) {
+                    Label(link.isStarred ? "Remove from Newsletter" : "Add to Newsletter", 
+                          systemImage: link.isStarred ? "star.slash" : "star")
+                }
+            }
+            
+            Button(action: { onAction(.markRead) }) {
+                Label(link.status == "read" ? "Mark Unread" : "Mark Read", 
+                      systemImage: "circle")
+            }
+            
+            Button(action: { onAction(.copyLink) }) {
+                Label("Copy Link", systemImage: "doc.on.doc")
+            }
+            
+            Button(action: { onAction(.resolve) }) {
+                Label("Resolve URL", systemImage: "arrow.triangle.2.circlepath")
+            }
+            
+            Divider()
+            
+            Button(action: { showingDeleteConfirmation = true }) {
+                Label("Delete", systemImage: "trash")
+            }
+            .foregroundColor(.red)
+        }
+    }
+}
+
+enum SwipeDirection {
+    case left, right, none
+}
+
+struct SwipeIndicatorView: View {
+    let direction: SwipeDirection
+    let progress: Double
+    let dragOffset: CGFloat
+    let link: Link
+    
+    var body: some View {
+        if direction != .none && progress > 0.1 {
+            HStack {
+                if direction == .left {
+                    Spacer()
+                }
+                
+                VStack(spacing: 4) {
+                    Image(systemName: iconName)
+                        .font(.title2)
+                        .foregroundColor(.white)
+                        .scaleEffect(0.8 + progress * 0.4)
+                    
+                    Text(actionText)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .opacity(max(0.3, min(progress * 1.5, 1.0)))
+                
+                if direction == .right {
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(
+                    colors: [backgroundColor.opacity(0.3), backgroundColor],
+                    startPoint: direction == .left ? .trailing : .leading,
+                    endPoint: direction == .left ? .leading : .trailing
+                )
+            )
+            .cornerRadius(12)
+        }
+    }
+    
+    private var iconName: String {
+        switch direction {
+        case .left: return progress > 0.8 ? "trash" : "checkmark"
+        case .right: 
+            if link.status == "read" {
+                return progress > 0.8 ? "doc.on.doc" : "star"
+            } else {
+                return "doc.on.doc"
+            }
+        case .none: return ""
+        }
+    }
+    
+    private var actionText: String {
+        switch direction {
+        case .left: return progress > 0.8 ? "Delete" : "Mark Read"
+        case .right: 
+            if link.status == "read" {
+                return progress > 0.8 ? "Copy Link" : "Star"
+            } else {
+                return "Copy Link"
+            }
+        case .none: return ""
+        }
+    }
+    
+    private var backgroundColor: Color {
+        switch direction {
+        case .left: return progress > 0.8 ? .red : .green
+        case .right: 
+            if link.status == "read" {
+                return progress > 0.8 ? .blue : .yellow
+            } else {
+                return .blue
+            }
+        case .none: return .clear
+        }
+    }
+}
+
+struct EnhancedLinkCardContent: View {
+    let link: Link
+    let isProcessingAction: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with star and title
+            HStack(alignment: .top, spacing: 8) {
+                if link.isStarred {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(.caption)
+                        .padding(.top, 2)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(decodeHtmlEntities(link.cleanTitle))
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    // Description (new!)
+                    if let description = link.description, !description.isEmpty {
+                        Text(decodeHtmlEntities(description))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(3)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(formatTimestamp(link.created_at))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Footer with domain
+            HStack {
+                Text(link.displayDomain)
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .lineLimit(1)
+                
+                Spacer()
+                
+                if isProcessingAction {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Processing...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
             }
-    }
-    
-    private func performMarkAsReadWithAnimation() {
-        guard !isMarkingAsRead else { return }
-        
-        isMarkingAsRead = true
-        
-        // Animate to completion
-        withAnimation(.spring(response: 0.3)) {
-            offset = -UIScreen.main.bounds.width
-            swipeProgress = 1.0
-        }
-        
-        // Call the action and reset
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onMarkAsRead()
-            
-            // Reset for reuse
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                isMarkingAsRead = false
-                offset = 0
-                swipeProgress = 0
-                hasShownVisualFeedback = false  // Reset feedback flag
-            }
-        }
-    }
-}
-
-struct SwipeActionBackground: View {
-    let progress: Double
-    let isCompleting: Bool
-    
-    var body: some View {
-        HStack {
-            Spacer()
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 50, height: 50)
-                        .scaleEffect(isCompleting ? 1.2 : (0.8 + progress * 0.4))
-                        .animation(.spring(response: 0.3), value: isCompleting)
-                    
-                    Image(systemName: progress > 0.8 ? "checkmark.circle.fill" : "checkmark")
-                        .font(.title2)
-                        .foregroundColor(.white)
-                        .scaleEffect(progress > 0.8 ? 1.2 : 1.0)
-                        .animation(.spring(response: 0.2), value: progress > 0.8)
-                }
-                
-                Text("Mark Read")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .opacity(max(0.3, progress))
-            }
-            .padding(.trailing, 24)
-        }
-        .background(
-            LinearGradient(
-                colors: [Color.green.opacity(0.8), Color.green],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-        )
-        .opacity(max(0.1, progress))
-    }
-}
-
-struct LinkCardContent: View {
-    let link: Link
-    let isMarkingAsRead: Bool
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                LinkHeader(link: link)
-                LinkURL(link: link)
-                LinkFooter(link: link, isMarkingAsRead: isMarkingAsRead)
-            }
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .opacity(0.6)
         }
         .padding(16)
         .background(
@@ -434,103 +611,9 @@ struct LinkCardContent: View {
                 .stroke(Color.gray.opacity(0.1), lineWidth: 1)
         )
     }
-}
-
-struct LinkHeader: View {
-    let link: Link
     
-    var body: some View {
-        HStack {
-            Text(link.title ?? link.resolved_url ?? link.raw_url ?? "No Title")
-                .font(.headline)
-                .fontWeight(.medium)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-            
-            Spacer()
-            
-            if let status = link.status {
-                StatusBadge(status: status)
-            }
-        }
-    }
-}
-
-struct StatusBadge: View {
-    let status: String
-    
-    var body: some View {
-        Text(status.uppercased())
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(status == "read" ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
-            )
-            .foregroundColor(status == "read" ? .green : .orange)
-    }
-}
-
-struct LinkURL: View {
-    let link: Link
-    
-    var body: some View {
-        if let url = link.resolved_url ?? link.raw_url {
-            Text(cleanDisplayURL(url))
-                .font(.subheadline)
-                .foregroundColor(.blue)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
-    }
-    
-    private func cleanDisplayURL(_ url: String) -> String {
-        var cleanedURL = url
-        
-        // Strip protocol prefixes
-        if cleanedURL.hasPrefix("https://") {
-            cleanedURL = String(cleanedURL.dropFirst(8)) // Remove "https://"
-        } else if cleanedURL.hasPrefix("http://") {
-            cleanedURL = String(cleanedURL.dropFirst(7))  // Remove "http://"
-        }
-        
-        // Strip "www." prefix if present
-        if cleanedURL.hasPrefix("www.") {
-            cleanedURL = String(cleanedURL.dropFirst(4)) // Remove "www."
-        }
-        
-        return cleanedURL
-    }
-}
-
-struct LinkFooter: View {
-    let link: Link
-    let isMarkingAsRead: Bool
-    
-    var body: some View {
-        HStack {
-            Text(formatDate(link.created_at))
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            if isMarkingAsRead {
-                HStack(spacing: 4) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("Marking as read...")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-    
-    private func formatDate(_ dateString: String?) -> String {
-        guard let dateString = dateString else { return "" }
+    private func formatTimestamp(_ timestamp: String?) -> String {
+        guard let timestamp = timestamp else { return "" }
         
         // Try multiple date formats to handle different timestamp formats
         let formatters = [
@@ -547,7 +630,7 @@ struct LinkFooter: View {
             formatter.dateFormat = format
             formatter.timeZone = TimeZone(secondsFromGMT: 0) // UTC
             
-            if let date = formatter.date(from: dateString) {
+            if let date = formatter.date(from: timestamp) {
                 let now = Date()
                 let timeInterval = now.timeIntervalSince(date)
                 
@@ -573,10 +656,82 @@ struct LinkFooter: View {
         }
         
         // If all parsing fails, return a cleaned version of the original string
-        if dateString.count > 16 {
-            return String(dateString.prefix(16)) + "..."
+        if timestamp.count > 16 {
+            return String(timestamp.prefix(16)) + "..."
         }
-        return dateString
+        return timestamp
+    }
+}
+
+// MARK: - HTML Entity Decoding
+func decodeHtmlEntities(_ text: String) -> String {
+    var decoded = text
+    
+    // Common HTML entities
+    let entities = [
+        "&#039;": "'",
+        "&quot;": "\"",
+        "&amp;": "&",
+        "&lt;": "<",
+        "&gt;": ">",
+        "&apos;": "'",
+        "&nbsp;": " ",
+        "&mdash;": "—",
+        "&ndash;": "–",
+        "&hellip;": "…",
+        "&ldquo;": "\u{201C}",
+        "&rdquo;": "\u{201D}",
+        "&lsquo;": "'",
+        "&rsquo;": "'",
+        "&#8217;": "'",
+        "&#8216;": "'",
+        "&#8220;": "\u{201C}",
+        "&#8221;": "\u{201D}",
+        "&#8211;": "–",
+        "&#8212;": "—",
+        "&#8230;": "…"
+    ]
+    
+    for (entity, replacement) in entities {
+        decoded = decoded.replacingOccurrences(of: entity, with: replacement)
+    }
+    
+    // Handle numeric entities (&#123;)
+    let numericPattern = "&#(\\d+);"
+    let regex = try? NSRegularExpression(pattern: numericPattern, options: [])
+    let range = NSRange(decoded.startIndex..<decoded.endIndex, in: decoded)
+    
+    if let regex = regex {
+        let matches = regex.matches(in: decoded, options: [], range: range)
+        for match in matches.reversed() { // Process in reverse to maintain indices
+            if let matchRange = Range(match.range, in: decoded),
+               let numberRange = Range(match.range(at: 1), in: decoded) {
+                let numberString = String(decoded[numberRange])
+                if let number = Int(numberString),
+                   let unicodeScalar = UnicodeScalar(number) {
+                    decoded.replaceSubrange(matchRange, with: String(Character(unicodeScalar)))
+                }
+            }
+        }
+    }
+    
+    return decoded
+}
+
+struct StatusBadge: View {
+    let status: String
+    
+    var body: some View {
+        Text(status.uppercased())
+            .font(.caption2)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(status == "read" ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+            )
+            .foregroundColor(status == "read" ? .green : .orange)
     }
 }
 
