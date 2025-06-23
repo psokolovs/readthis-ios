@@ -1,0 +1,665 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CD8CD3FD2DF4C2D400853FD5 /* PSReadThisShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CD8CD3F32DF4C2D400853FD5 /* PSReadThisShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CD8CD4242DF531F300853FD5 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CD8CD4232DF531F200853FD5 /* UniformTypeIdentifiers.framework */; };
+		CD8CD4302DF531F300853FD5 /* ReadAction .appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = CD8CD4212DF531F200853FD5 /* ReadAction .appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CD8CD3FB2DF4C2D400853FD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CD8CD3D92DF4C2A000853FD5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD8CD3F22DF4C2D400853FD5;
+			remoteInfo = PSReadThisShare;
+		};
+		CD8CD42E2DF531F300853FD5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CD8CD3D92DF4C2A000853FD5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CD8CD4202DF531F200853FD5;
+			remoteInfo = ReadAction;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CD8CD4022DF4C2D400853FD5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CD8CD4302DF531F300853FD5 /* ReadAction .appex in Embed Foundation Extensions */,
+				CD8CD3FD2DF4C2D400853FD5 /* PSReadThisShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		CD8CD3E12DF4C2A000853FD5 /* PSReadThis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PSReadThis.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD8CD3F32DF4C2D400853FD5 /* PSReadThisShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PSReadThisShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD8CD4212DF531F200853FD5 /* ReadAction .appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "ReadAction .appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		CD8CD4232DF531F200853FD5 /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CD8CD3FE2DF4C2D400853FD5 /* Exceptions for "PSReadThisShare" folder in "PSReadThisShare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CD8CD3F22DF4C2D400853FD5 /* PSReadThisShare */;
+		};
+		CD8CD4312DF531F300853FD5 /* Exceptions for "ReadAction" folder in "ReadAction" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CD8CD4202DF531F200853FD5 /* ReadAction */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CD8CD3E32DF4C2A000853FD5 /* PSReadThis */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PSReadThis;
+			sourceTree = "<group>";
+		};
+		CD8CD3F42DF4C2D400853FD5 /* PSReadThisShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CD8CD3FE2DF4C2D400853FD5 /* Exceptions for "PSReadThisShare" folder in "PSReadThisShare" target */,
+			);
+			path = PSReadThisShare;
+			sourceTree = "<group>";
+		};
+		CD8CD4252DF531F300853FD5 /* ReadAction */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CD8CD4312DF531F300853FD5 /* Exceptions for "ReadAction" folder in "ReadAction" target */,
+			);
+			path = ReadAction;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CD8CD3DE2DF4C2A000853FD5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD3F02DF4C2D400853FD5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD41E2DF531F200853FD5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CD8CD4242DF531F300853FD5 /* UniformTypeIdentifiers.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		CD8CD3D82DF4C2A000853FD5 = {
+			isa = PBXGroup;
+			children = (
+				CD8CD3E32DF4C2A000853FD5 /* PSReadThis */,
+				CD8CD3F42DF4C2D400853FD5 /* PSReadThisShare */,
+				CD8CD4252DF531F300853FD5 /* ReadAction */,
+				CD8CD4222DF531F200853FD5 /* Frameworks */,
+				CD8CD3E22DF4C2A000853FD5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CD8CD3E22DF4C2A000853FD5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CD8CD3E12DF4C2A000853FD5 /* PSReadThis.app */,
+				CD8CD3F32DF4C2D400853FD5 /* PSReadThisShare.appex */,
+				CD8CD4212DF531F200853FD5 /* ReadAction .appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CD8CD4222DF531F200853FD5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CD8CD4232DF531F200853FD5 /* UniformTypeIdentifiers.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CD8CD3E02DF4C2A000853FD5 /* PSReadThis */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CD8CD3EC2DF4C2A100853FD5 /* Build configuration list for PBXNativeTarget "PSReadThis" */;
+			buildPhases = (
+				CD8CD3DD2DF4C2A000853FD5 /* Sources */,
+				CD8CD3DE2DF4C2A000853FD5 /* Frameworks */,
+				CD8CD3DF2DF4C2A000853FD5 /* Resources */,
+				CD8CD4022DF4C2D400853FD5 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CD8CD3FC2DF4C2D400853FD5 /* PBXTargetDependency */,
+				CD8CD42F2DF531F300853FD5 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CD8CD3E32DF4C2A000853FD5 /* PSReadThis */,
+			);
+			name = PSReadThis;
+			packageProductDependencies = (
+			);
+			productName = PSReadThis;
+			productReference = CD8CD3E12DF4C2A000853FD5 /* PSReadThis.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CD8CD3F22DF4C2D400853FD5 /* PSReadThisShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CD8CD3FF2DF4C2D400853FD5 /* Build configuration list for PBXNativeTarget "PSReadThisShare" */;
+			buildPhases = (
+				CD8CD3EF2DF4C2D400853FD5 /* Sources */,
+				CD8CD3F02DF4C2D400853FD5 /* Frameworks */,
+				CD8CD3F12DF4C2D400853FD5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CD8CD3F42DF4C2D400853FD5 /* PSReadThisShare */,
+			);
+			name = PSReadThisShare;
+			packageProductDependencies = (
+			);
+			productName = PSReadThisShare;
+			productReference = CD8CD3F32DF4C2D400853FD5 /* PSReadThisShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		CD8CD4202DF531F200853FD5 /* ReadAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CD8CD4322DF531F300853FD5 /* Build configuration list for PBXNativeTarget "ReadAction" */;
+			buildPhases = (
+				CD8CD41D2DF531F200853FD5 /* Sources */,
+				CD8CD41E2DF531F200853FD5 /* Frameworks */,
+				CD8CD41F2DF531F200853FD5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CD8CD4252DF531F300853FD5 /* ReadAction */,
+			);
+			name = ReadAction;
+			packageProductDependencies = (
+			);
+			productName = ReadAction;
+			productReference = CD8CD4212DF531F200853FD5 /* ReadAction .appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CD8CD3D92DF4C2A000853FD5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					CD8CD3E02DF4C2A000853FD5 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					CD8CD3F22DF4C2D400853FD5 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					CD8CD4202DF531F200853FD5 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+				};
+			};
+			buildConfigurationList = CD8CD3DC2DF4C2A000853FD5 /* Build configuration list for PBXProject "PSReadThis" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CD8CD3D82DF4C2A000853FD5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CD8CD3E22DF4C2A000853FD5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CD8CD3E02DF4C2A000853FD5 /* PSReadThis */,
+				CD8CD3F22DF4C2D400853FD5 /* PSReadThisShare */,
+				CD8CD4202DF531F200853FD5 /* ReadAction */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CD8CD3DF2DF4C2A000853FD5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD3F12DF4C2D400853FD5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD41F2DF531F200853FD5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CD8CD3DD2DF4C2A000853FD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD3EF2DF4C2D400853FD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CD8CD41D2DF531F200853FD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CD8CD3FC2DF4C2D400853FD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD8CD3F22DF4C2D400853FD5 /* PSReadThisShare */;
+			targetProxy = CD8CD3FB2DF4C2D400853FD5 /* PBXContainerItemProxy */;
+		};
+		CD8CD42F2DF531F300853FD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CD8CD4202DF531F200853FD5 /* ReadAction */;
+			targetProxy = CD8CD42E2DF531F300853FD5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		CD8CD3EA2DF4C2A100853FD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		CD8CD3EB2DF4C2A100853FD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		CD8CD3ED2DF4C2A100853FD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PSReadThis/PSReadThis.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CD8CD3EE2DF4C2A100853FD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PSReadThis/PSReadThis.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CD8CD4002DF4C2D400853FD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PSReadThisShare/PSReadThisShare.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PSReadThisShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Finished Reading";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis.PSReadThisShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CD8CD4012DF4C2D400853FD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PSReadThisShare/PSReadThisShare.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PSReadThisShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Finished Reading";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis.PSReadThisShare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CD8CD4332DF531F300853FD5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ReadAction/ReadAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReadAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Save for Later";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis.ReadAction;
+				PRODUCT_NAME = "$(TARGET_NAME) ";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CD8CD4342DF531F300853FD5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ReadAction/ReadAction.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4MUD97LXVQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReadAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Save for Later";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pavels.PSReadThis.ReadAction;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		CD8CD3DC2DF4C2A000853FD5 /* Build configuration list for PBXProject "PSReadThis" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD8CD3EA2DF4C2A100853FD5 /* Debug */,
+				CD8CD3EB2DF4C2A100853FD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CD8CD3EC2DF4C2A100853FD5 /* Build configuration list for PBXNativeTarget "PSReadThis" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD8CD3ED2DF4C2A100853FD5 /* Debug */,
+				CD8CD3EE2DF4C2A100853FD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CD8CD3FF2DF4C2D400853FD5 /* Build configuration list for PBXNativeTarget "PSReadThisShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD8CD4002DF4C2D400853FD5 /* Debug */,
+				CD8CD4012DF4C2D400853FD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CD8CD4322DF531F300853FD5 /* Build configuration list for PBXNativeTarget "ReadAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CD8CD4332DF531F300853FD5 /* Debug */,
+				CD8CD4342DF531F300853FD5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = CD8CD3D92DF4C2A000853FD5 /* Project object */;
+}
