@@ -10,8 +10,23 @@ import MobileCoreServices
 import UniformTypeIdentifiers
 import Network
 
+// Custom label with padding
+class PaddedLabel: UILabel {
+    private let padding = UIEdgeInsets(top: 16, left: 20, bottom: 16, right: 20)
+    
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.inset(by: padding))
+    }
+    
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(width: size.width + padding.left + padding.right,
+                      height: size.height + padding.top + padding.bottom)
+    }
+}
+
 class ActionViewController: UIViewController {
-    private let label = UILabel()
+    private let label = PaddedLabel()
     private let networkMonitor = NWPathMonitor()
     private let networkQueue = DispatchQueue(label: "NetworkMonitor")
     private var isNetworkAvailable = false
@@ -48,37 +63,66 @@ class ActionViewController: UIViewController {
     private func setupLabel() {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .white
-        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.font = .systemFont(ofSize: 20, weight: .bold)  // Larger, bolder font
         label.textAlignment = .center
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.8)
-        label.layer.cornerRadius = 12
+        label.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.9)
+        label.layer.cornerRadius = 16  // More rounded corners
         label.layer.masksToBounds = true
-        label.text = "Saving..."
+        label.text = "📥 Saving..."
+        
+        // Add padding around text
+        label.layer.borderWidth = 2
+        label.layer.borderColor = UIColor.white.withAlphaComponent(0.3).cgColor
+        
         view.addSubview(label)
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 32),
-            label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32)
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 40),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -40)
         ])
     }
 
     private func showSaving() {
-        label.text = "Saving..."
+        DispatchQueue.main.async {
+            self.label.text = "📥 Saving..."
+            self.label.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.9)
+        }
     }
 
     private func showSaved(domain: String) {
-        label.text = "Link from \(domain) saved!"
+        DispatchQueue.main.async {
+            self.label.text = "✅ Saved!\nLink from \(domain)"
+            self.label.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
+            
+            // Add haptic feedback for success
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }
     }
     
     private func showSavedOffline(domain: String) {
-        label.text = "Link from \(domain) saved for later sync!"
+        DispatchQueue.main.async {
+            self.label.text = "💾 Saved offline!\nWill sync when online"
+            self.label.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.9)
+            
+            // Add haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }
     }
 
     private func showError() {
-        label.text = "Failed to save link."
+        DispatchQueue.main.async {
+            self.label.text = "❌ Failed to save"
+            self.label.backgroundColor = UIColor.systemRed.withAlphaComponent(0.9)
+            
+            // Add haptic feedback for error
+            let notificationFeedback = UINotificationFeedbackGenerator()
+            notificationFeedback.notificationOccurred(.error)
+        }
     }
 
     private func startSaveProcess() {
@@ -197,8 +241,8 @@ class ActionViewController: UIViewController {
         }
     }
 
-    private func dismissAfterDelay() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+    private func dismissAfterDelay(delay: TimeInterval = 2.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
         }
     }
@@ -414,14 +458,14 @@ class ActionViewController: UIViewController {
                 DispatchQueue.main.async {
                     print("[ReadAction] ✅ Link saved and uploaded for domain: \(domain)")
                     self.showSaved(domain: domain)
-                    self.dismissAfterDelay()
+                    self.dismissAfterDelay(delay: 3.0)  // Longer display for success
                 }
             } else {
                 // Online but sync failed - show error
                 DispatchQueue.main.async {
                     print("[ReadAction] ❌ Failed to save or upload link")
                     self.showError()
-                    self.dismissAfterDelay()
+                    self.dismissAfterDelay(delay: 2.0)  // Standard time for errors
                 }
             }
         } else {
@@ -433,7 +477,7 @@ class ActionViewController: UIViewController {
             print("[ReadAction] 📱 Offline: Saved to queue for later sync")
             DispatchQueue.main.async {
                 self.showSavedOffline(domain: domain)
-                self.dismissAfterDelay()
+                self.dismissAfterDelay(delay: 3.0)  // Longer display for offline success
             }
         }
     }
