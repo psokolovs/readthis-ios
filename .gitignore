@@ -132,4 +132,19 @@ links_rows.sql
 
 # Project specific
 config.json
-*.log 
+*.log # Screenshots and test artifacts
+*.png
+**/step*.png
+**/test*.png
+**/acc_*.png
+**/thumb_*.png
+**/tiny_*.png
+**/after_*.png
+**/method*.png
+final_test_*/
+interactive_test_*/
+test_results_*/
+simple_test_*/
+*.sh
+current_state.png
+touch_working.png
