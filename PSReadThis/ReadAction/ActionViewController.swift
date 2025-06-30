@@ -493,4 +493,12 @@ class ActionViewController: UIViewController {
     deinit {
         networkMonitor.cancel()
     }
+    
+    // MARK: - UI Actions
+    
+    /// Required method to handle "Done" button taps from storyboard
+    @IBAction func done() {
+        print("[ReadAction] 🏁 Done button tapped - completing extension")
+        extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+    }
 }
