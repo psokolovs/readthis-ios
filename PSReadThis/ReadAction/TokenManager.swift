@@ -14,7 +14,7 @@ final class TokenManager {
     let supabaseURL = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co")!
     
     // Use the working anon key from the logs (the one that's actually working in main app)
-    private let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U"
+    private let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
     private var cachedAnonKey: String?
 
     // MARK: – Public API

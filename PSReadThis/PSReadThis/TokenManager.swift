@@ -42,7 +42,7 @@ actor TokenManager {
     if anonKey != nil { return }
     
     // Use the working anon key from logs - hardcoded to bypass remote config issues
-    let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwOTI0MjUsImV4cCI6MjA2NDY2ODQyNX0.xRydYO7gkOQaU-tec-q3f5sqa0OF9j5LEzu1OvNRx_U"
+    let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
     
     anonKey = correctAnonKey
     print("[PSReadThis] 🔑 Using hardcoded correct anonKey in TokenManager: \(correctAnonKey.prefix(50))...")
