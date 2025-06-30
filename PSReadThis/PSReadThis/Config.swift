@@ -6,6 +6,9 @@ class PSReadThisConfig {
     private let configURL = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/storage/v1/object/public/psreadthis/psreadthis-config.json")!
     private let supabaseURL = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co")!
     
+    // Use the correct anon key provided by the user - hardcoded to bypass remote config issues
+    private let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
+    
     private var cachedAnonKey: String?
     private let cacheKey = "PSReadThisAnonKey"
     
@@ -15,37 +18,27 @@ class PSReadThisConfig {
         return supabaseURL
     }
     
-    func getAnonKey() async throws -> String {
-        // Return cached key if available
-        if let cached = cachedAnonKey {
-            return cached
-        }
+    func getAnonKey() async -> String? {
+        print("[PSReadThisConfig] 🔑 Using hardcoded correct anon key to bypass remote config issues")
         
-        // Try UserDefaults cache
-        if let userDefaultsKey = UserDefaults.standard.string(forKey: cacheKey) {
-            cachedAnonKey = userDefaultsKey
-            return userDefaultsKey
-        }
+        // Return the correct anon key directly - no remote fetching
+        cachedAnonKey = correctAnonKey
+        UserDefaults.standard.set(correctAnonKey, forKey: cacheKey)
         
-        // Fetch from remote config
-        let (data, response) = try await URLSession.shared.data(from: configURL)
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw URLError(.badServerResponse)
-        }
-        
-        let config = try JSONDecoder().decode(ConfigResponse.self, from: data)
-        
-        // Cache the key
-        cachedAnonKey = config.anonKey
-        UserDefaults.standard.set(config.anonKey, forKey: cacheKey)
-        
-        return config.anonKey
+        print("[PSReadThisConfig] ✅ Using correct anon key: \(correctAnonKey.prefix(50))...")
+        return correctAnonKey
+    }
+    
+    // Legacy method - no longer used but keeping for compatibility
+    private func fetchConfigFromRemote() async -> String? {
+        print("[PSReadThisConfig] ⚠️ Legacy remote config method - should not be called")
+        return correctAnonKey
     }
     
     func clearCache() {
         cachedAnonKey = nil
         UserDefaults.standard.removeObject(forKey: cacheKey)
+        print("[PSReadThisConfig] 🧹 Cache cleared")
     }
 }
 

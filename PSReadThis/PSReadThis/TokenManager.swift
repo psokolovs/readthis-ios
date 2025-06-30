@@ -41,28 +41,12 @@ actor TokenManager {
     print("[PSReadThis] !! 🔑 loadAnonKeyIfNeeded() start (extension)")
     if anonKey != nil { return }
     
-    // Force clear any cached old key to ensure we get the fresh key from remote
-    UserDefaults.standard.removeObject(forKey: "PSReadThisAnonKey")
+    // Use the correct anon key directly - hardcoded to bypass remote config issues
+    let correctAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlqZHR3cnNxZ2J3ZmdmdGNreXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NTc0OTgsImV4cCI6MjA2NjIzMzQ5OH0.5g-vKzecYOf8fZut3h2lvVewbXoO9AvjYcLDxLN_510"
     
-    // Try cached (only after clearing old cache)
-    if let cached = UserDefaults.standard.string(forKey: "PSReadThisAnonKey") {
-      anonKey = cached
-      print("[PSReadThis] 🔑 Using cached anonKey in extension:", cached)
-      return
-    }
-    
-    // Fetch from remote
-    let (data, res) = try await URLSession.shared.data(from: configURL)
-    guard let http = res as? HTTPURLResponse, http.statusCode == 200 else {
-      throw URLError(.badServerResponse)
-    }
-    let cfg = try JSONDecoder().decode([String:String].self, from: data)
-    guard let key = cfg["anonKey"] else {
-      fatalError("Config missing anonKey")
-    }
-    anonKey = key
-    print("[PSReadThis] 🔑 Loaded anonKey in extension:", key)
-    UserDefaults.standard.set(key, forKey: "PSReadThisAnonKey")
+    anonKey = correctAnonKey
+    print("[PSReadThis] 🔑 Using hardcoded correct anonKey in TokenManager: \(correctAnonKey.prefix(50))...")
+    UserDefaults.standard.set(correctAnonKey, forKey: "PSReadThisAnonKey")
   }
 
   // MARK: - Login / Refresh
@@ -307,6 +291,34 @@ actor TokenManager {
       }
       
       print("=== END ENTITLEMENT DIAGNOSTICS ===")
+  }
+
+  // Add method to clear all authentication data
+  func clearAllTokens() async {
+      print("[TokenManager] 🧹 Clearing all authentication data...")
+      
+      let accessGroup = resolveKeychainAccessGroup()
+      
+      // Clear all keychain items
+      let keysToDelete = [accessTokenKey, refreshTokenKey]
+      for key in keysToDelete {
+          let deleteQuery: [CFString: Any] = [
+              kSecClass: kSecClassGenericPassword,
+              kSecAttrAccessGroup: accessGroup,
+              kSecAttrAccount: key
+          ]
+          let status = SecItemDelete(deleteQuery as CFDictionary)
+          print("[TokenManager] Deleted \(key) with status: \(status)")
+      }
+      
+      // Clear UserDefaults
+      UserDefaults.standard.removeObject(forKey: expiresAtKey)
+      UserDefaults.standard.removeObject(forKey: "PSReadThisAnonKey")
+      
+      // Clear cached anon key
+      anonKey = nil
+      
+      print("[TokenManager] ✅ All authentication data cleared")
   }
 }
 
