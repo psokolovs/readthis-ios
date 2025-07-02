@@ -219,40 +219,58 @@ struct SimpleLinkCard: View {
     @State private var isProcessingAction = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             // Title with star
             HStack(alignment: .top, spacing: 8) {
                 if link.isStarred {
                     Image(systemName: "star.fill")
                         .foregroundColor(.yellow)
-                        .font(.caption)
+                        .font(.system(size: 14))
                 }
                 
                 Text(decodeHtmlEntities(betterTitle(for: link)))
                     .font(.headline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
                 Spacer()
             }
             
-            // URL/Domain
-            Text(extractDomain(from: link.resolved_url ?? link.raw_url ?? ""))
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
+            // Description (if available)
+            if let description = link.description, !description.isEmpty {
+                Text(decodeHtmlEntities(description))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
             
-            // Time  
-            Text(formatTimeAgo(from: link.updated_at ?? link.created_at ?? ""))
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // URL/Domain and Time
+            HStack {
+                Text(extractDomain(from: link.resolved_url ?? link.raw_url ?? ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                
+                Spacer()
+                
+                Text(formatTimeAgo(from: link.updated_at ?? link.created_at ?? ""))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
-        .padding()
-        .background(Color(.systemBackground))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
         .overlay(
-            Rectangle()
-                .stroke(Color(.systemGray4), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray6), lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -343,7 +361,7 @@ struct SimpleLinkCard: View {
         }
         .opacity(isProcessingAction ? 0.6 : 1.0)
         .disabled(isProcessingAction)
-        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
         .listRowSeparator(.hidden)
     }
 }
@@ -459,9 +477,8 @@ func betterTitle(for link: Link) -> String {
         return cleanTitle
     }
     
-    // Fall back to a more user-friendly display
-    let domain = extractDomain(from: link.resolved_url ?? link.raw_url ?? "")
-    return "Link from \(domain)"
+    // Fall back to the domain name directly
+    return extractDomain(from: link.resolved_url ?? link.raw_url ?? "")
 }
 
 func extractDomain(from urlString: String) -> String {
