@@ -126,6 +126,12 @@ struct ContentView: View {
                     showingSafari = true
                 }
             }
+            .onChange(of: showingSafari) { isShowing in
+                if !isShowing {
+                    // Reset selectedURL when Safari is dismissed to allow re-tapping the same link
+                    selectedURL = nil
+                }
+            }
         }
         .task {
             // Simple initial load
