@@ -42,183 +42,142 @@ class LinksViewModel: ObservableObject {
     // Basic pagination cursors (simplified)
     private var lastUpdatedAt: String? = nil
     private var lastId: String? = nil
+    
+    // Performance optimization: Cache anon key and user ID
+    private var cachedAnonKey: String?
+    private var cachedUserId: String?
 
     func fetchLinks(reset: Bool = false) async {
-        print("[LinksViewModel] fetchLinks called. reset=\(reset), lastUpdatedAt=\(String(describing: lastUpdatedAt)), lastId=\(String(describing: lastId)), links.count=\(links.count), filter=\(currentFilter.rawValue)")
+        print("[LinksViewModel] fetchLinks called. reset=\(reset), filter=\(currentFilter.rawValue)")
         
         if reset {
-            print("[LinksViewModel] Resetting state.")
             links = []
             lastUpdatedAt = nil
-            lastId = nil  // Reset compound cursor
+            lastId = nil
             hasMore = true
         }
         
         guard !isLoading, hasMore else {
-            print("[LinksViewModel] Skipping fetch: isLoading=\(isLoading), hasMore=\(hasMore)")
             return
         }
         
         isLoading = true
         error = nil
         
-        // Sync any pending mark-as-read actions when fetching
-        await syncMarkAsReadQueue()
-        
-        // Sync any pending extension queues when fetching
-        await syncExtensionQueue()
+        // Performance optimization: Only sync queues on reset, not every fetch
+        if reset {
+            await syncMarkAsReadQueue()
+            await syncExtensionQueue()
+        }
         
         do {
-            print("[LinksViewModel] 🔐 Getting access token...")
-            let token = try await TokenManager.shared.getValidAccessToken()
-            print("[LinksViewModel] ✅ Got access token successfully")
+            // Performance optimization: Get token and anon key in parallel
+            async let tokenTask = TokenManager.shared.getValidAccessToken()
+            async let anonKeyTask = getAnonKeyOptimized()
             
-            // Extract user ID from the JWT token to explicitly filter by user
-            let userId = extractUserIdFromToken(token) ?? "unknown"
-            print("[LinksViewModel] Extracted user ID from token: \(userId)")
+            let (token, anonKey) = try await (tokenTask, anonKeyTask)
             
-            print("[LinksViewModel] 🔑 Getting anon key...")
-            guard let anonKey = await PSReadThisConfig.shared.getAnonKey() else {
-                print("[LinksViewModel] ❌ Failed to get anon key")
-                self.error = "Configuration error. Please check your connection."
-                isLoading = false
-                return
-            }
-            print("[LinksViewModel] ✅ Got anon key successfully")
+            // Performance optimization: Cache user ID extraction
+            let userId = getUserIdOptimized(token: token)
             
-            // Build URL with status filtering and user filtering - sort by updated_at,id for compound cursor pagination
-            var urlString = "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?select=*&order=updated_at.desc.nullslast,id.desc&limit=\(pageSize)"
-            
-            // Add status filter based on current filter
-            switch currentFilter {
-            case .unread:
-                urlString += "&status=eq.unread"
-                print("[LinksViewModel] Adding unread filter")
-            case .read:
-                urlString += "&status=eq.read"
-                print("[LinksViewModel] Adding read filter")
-            case .all:
-                print("[LinksViewModel] No status filter - showing all")
-                // No status filter - show all
-                break
-            }
-            
-            var url = URL(string: urlString)!
-            if let lastTimestamp = lastUpdatedAt, let lastLinkId = lastId {
-                // Add compound keyset pagination (updated_at, id) for stable sorting
-                // Must encode + as %2B specifically for timestamps
-                let encodedTimestamp = lastTimestamp.replacingOccurrences(of: "+", with: "%2B")
-                let paginatedUrlString = urlString + "&or=(updated_at.lt.\(encodedTimestamp),and(updated_at.eq.\(encodedTimestamp),id.lt.\(lastLinkId)))"
-                url = URL(string: paginatedUrlString)!
-            }
+            // Streamlined URL construction
+            let url = buildAPIURL(userId: userId)
             
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            
-            // Add prefer header to handle RLS properly
             request.setValue("return=representation", forHTTPHeaderField: "Prefer")
             
-            print("[LinksViewModel] 🌐 Making request to URL: \(url)")
-            print("[LinksViewModel] 📋 Request headers: \(request.allHTTPHeaderFields ?? [:])")
+            // Performance optimization: Shorter timeout for faster feedback
+            request.timeoutInterval = 8.0
             
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            if let http = response as? HTTPURLResponse {
-                print("[LinksViewModel] 📡 HTTP Response - Status: \(http.statusCode)")
-                print("[LinksViewModel] 📡 Response headers: \(http.allHeaderFields)")
-                
-                if http.statusCode != 200 {
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                if let http = response as? HTTPURLResponse {
                     let body = String(data: data, encoding: .utf8) ?? ""
-                    print("[LinksViewModel] ❌ Error Response Body: \(body)")
-                    
-                    // Provide more specific error messages based on status code
-                    let errorMessage: String
-                    switch http.statusCode {
-                    case 401:
-                        errorMessage = "Authentication failed. Please check your login credentials."
-                    case 403:
-                        errorMessage = "Access forbidden. Check your permissions."
-                    case 404:
-                        errorMessage = "API endpoint not found. Check your configuration."
-                    case 500...599:
-                        errorMessage = "Server error (\(http.statusCode)). Please try again later."
-                    default:
-                        errorMessage = "Request failed with status \(http.statusCode): \(body)"
-                    }
-                    
-                    self.error = errorMessage
-                    isLoading = false
-                    return
+                    print("[LinksViewModel] ❌ HTTP \(http.statusCode): \(body)")
                 }
+                self.error = "Failed to load links"
+                isLoading = false
+                return
             }
-            
-            let responseBody = String(data: data, encoding: .utf8) ?? ""
-            print("[LinksViewModel] ✅ Response body preview: \(String(responseBody.prefix(200)))...")
             
             let newLinks = try JSONDecoder().decode([Link].self, from: data)
-            print("[LinksViewModel] ✅ Decoded \(newLinks.count) links successfully")
             
-            // Debug: Print details about the first few links and check for nil URLs
-            for (index, link) in newLinks.prefix(5).enumerated() {
-                let hasValidURL = (link.raw_url != nil && !link.raw_url!.isEmpty) || (link.resolved_url != nil && !link.resolved_url!.isEmpty)
-                print("[LinksViewModel] Link \(index): id=\(link.id), title=\(link.title ?? "nil"), raw_url=\(link.raw_url ?? "nil"), resolved_url=\(link.resolved_url ?? "nil"), hasValidURL=\(hasValidURL)")
-                
-                if !hasValidURL {
-                    print("[LinksViewModel] ⚠️ WARNING: Link \(link.id) has no valid URL!")
+            // Performance optimization: Filter invalid URLs efficiently
+            let validLinks = newLinks.compactMap { link -> Link? in
+                guard (link.raw_url?.isEmpty == false) || (link.resolved_url?.isEmpty == false) else {
+                    return nil
                 }
-            }
-            
-            // Filter out links with invalid URLs to prevent UI errors
-            let validLinks = newLinks.filter { link in
-                let hasValidURL = (link.raw_url != nil && !link.raw_url!.isEmpty) || (link.resolved_url != nil && !link.resolved_url!.isEmpty)
-                if !hasValidURL {
-                    print("[LinksViewModel] 🚫 Filtering out link with invalid URL: \(link.id)")
-                }
-                return hasValidURL
+                return link
             }
             
             links.append(contentsOf: validLinks)
             hasMore = newLinks.count == pageSize
             
-            if validLinks.count != newLinks.count {
-                print("[LinksViewModel] ⚠️ Filtered out \(newLinks.count - validLinks.count) links with invalid URLs")
-            }
-            // Update compound cursor with both timestamp and ID
+            // Update pagination cursors
             lastUpdatedAt = newLinks.last?.updated_at
             lastId = newLinks.last?.id
-            print("[LinksViewModel] ✅ Fetch complete: links.count=\(links.count), hasMore=\(hasMore), lastUpdatedAt=\(String(describing: lastUpdatedAt)), lastId=\(String(describing: lastId))")
             
-        } catch let urlError as URLError {
-            print("[LinksViewModel] ❌ URLError: \(urlError)")
-            print("[LinksViewModel] ❌ URLError code: \(urlError.code.rawValue)")
-            print("[LinksViewModel] ❌ URLError description: \(urlError.localizedDescription)")
+            print("[LinksViewModel] ✅ Loaded \(validLinks.count) links, total: \(links.count)")
             
-            let errorMessage: String
-            switch urlError.code {
-            case .notConnectedToInternet:
-                errorMessage = "No internet connection. Please check your network settings."
-            case .timedOut:
-                errorMessage = "Request timed out. Please try again."
-            case .badServerResponse:
-                errorMessage = "Server returned an invalid response. This might be a configuration issue."
-            case .userAuthenticationRequired:
-                errorMessage = "Authentication required. Please check your login credentials."
-            case .cannotFindHost:
-                errorMessage = "Cannot connect to server. Please check your network connection."
-            default:
-                errorMessage = "Network error: \(urlError.localizedDescription)"
-            }
-            
-            self.error = errorMessage
         } catch {
-            print("[LinksViewModel] ❌ Unexpected error: \(error)")
-            self.error = "Unexpected error: \(error.localizedDescription)"
+            print("[LinksViewModel] ❌ Fetch error: \(error)")
+            self.error = "Failed to load links: \(error.localizedDescription)"
         }
         
         isLoading = false
+    }
+    
+    // Performance optimization: Cache anon key
+    private func getAnonKeyOptimized() async throws -> String {
+        if let cached = cachedAnonKey {
+            return cached
+        }
+        
+        guard let anonKey = await PSReadThisConfig.shared.getAnonKey() else {
+            throw URLError(.badServerResponse)
+        }
+        
+        cachedAnonKey = anonKey
+        return anonKey
+    }
+    
+    // Performance optimization: Cache user ID
+    private func getUserIdOptimized(token: String) -> String {
+        if let cached = cachedUserId {
+            return cached
+        }
+        
+        let userId = extractUserIdFromToken(token) ?? "unknown"
+        cachedUserId = userId
+        return userId
+    }
+    
+    // Performance optimization: Streamlined URL building
+    private func buildAPIURL(userId: String) -> URL {
+        var urlString = "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?select=*&order=updated_at.desc.nullslast,id.desc&limit=\(pageSize)"
+        
+        // Add status filter
+        switch currentFilter {
+        case .unread:
+            urlString += "&status=eq.unread"
+        case .read:
+            urlString += "&status=eq.read"
+        case .all:
+            break
+        }
+        
+        // Add pagination if needed
+        if let lastTimestamp = lastUpdatedAt, let lastLinkId = lastId {
+            let encodedTimestamp = lastTimestamp.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? lastTimestamp
+            urlString += "&or=(updated_at.lt.\(encodedTimestamp),and(updated_at.eq.\(encodedTimestamp),id.lt.\(lastLinkId)))"
+        }
+        
+        return URL(string: urlString)!
     }
     
     func setFilter(_ filter: LinkFilter) async {

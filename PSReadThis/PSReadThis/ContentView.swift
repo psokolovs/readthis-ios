@@ -46,6 +46,7 @@ struct ContentView: View {
                         
                         Spacer()
                     }
+                    .padding(.horizontal, 16)  // Add padding to align with content filters
                     
                     // Content Type Filters (Performance Optimized)
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -55,13 +56,6 @@ struct ContentView: View {
                                 isSelected: selectedContentFilter == "all"
                             ) {
                                 selectedContentFilter = "all"
-                            }
-                            
-                            ContentFilterChip(
-                                title: "⭐ Featured",
-                                isSelected: selectedContentFilter == "featured"
-                            ) {
-                                selectedContentFilter = "featured"
                             }
                             
                             ContentFilterChip(
@@ -151,8 +145,6 @@ struct SimpleLinksList: View {
         
         return viewModel.links.filter { link in
             switch contentFilter {
-            case "featured":
-                return link.isStarred
             case "video":
                 return isVideoLink(link)
             case "audio":
@@ -272,11 +264,22 @@ struct SimpleLinkCard: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color(.systemGray6), lineWidth: 1)
+        )
+        // Dark mode aware shadow/border combination
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    Color.primary.opacity(0.06), 
+                    lineWidth: 0.5
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.03), 
+            radius: 1, x: 0, y: 0.5
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -367,7 +370,7 @@ struct SimpleLinkCard: View {
         }
         .opacity(isProcessingAction ? 0.6 : 1.0)
         .disabled(isProcessingAction)
-        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        .listRowInsets(EdgeInsets(top: 8, leading: 2, bottom: 8, trailing: 2))
         .listRowSeparator(.hidden)
     }
 }
@@ -570,7 +573,7 @@ struct DeveloperModeView: View {
                     Text("Version:")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Text("0.10")
+                    Text("0.11")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundColor(.blue)
