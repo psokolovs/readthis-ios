@@ -573,7 +573,7 @@ struct DeveloperModeView: View {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.11 (Performance Monitoring)")
+                        Text("0.12 (Ultra Performance)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)
