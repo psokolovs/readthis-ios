@@ -565,6 +565,22 @@ struct DeveloperModeView: View {
                     .font(.title2)
                     .fontWeight(.semibold)
                 
+                // Version Label
+                HStack {
+                    Text("Version:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("0.10")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.blue)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                
                 Button("Clear Authentication & Retry") {
                     Task {
                         await viewModel.clearAuthentication()
