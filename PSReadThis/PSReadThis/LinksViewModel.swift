@@ -459,9 +459,8 @@ class LinksViewModel: ObservableObject {
     }
     
     private func buildOptimizedAPIURL(userId: String) -> URL {
-        // v0.12 Optimization: Minimal fields for faster response
-        let baseFields = "id,raw_url,resolved_url,title,description,status,updated_at,created_at"
-        var urlString = "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?select=\(baseFields)&order=updated_at.desc.nullslast,id.desc&limit=\(pageSize)"
+        // v0.12 Optimization: Using select=* to avoid field selection issues, focus optimization on caching and other areas
+        var urlString = "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?select=*&order=updated_at.desc.nullslast,id.desc&limit=\(pageSize)"
         
         // Add status filter
         switch currentFilter {
