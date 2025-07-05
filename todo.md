@@ -1,8 +1,10 @@
 #todo
+- Debug / fix Save for Later. It' stopped working and it's not clear what caused it. 
 - I want to be able to login to sites like substack using my credentials, so that it can follow all the redirects. 
 - Bug: Save for later doesn't work on PDF pages, it shows 'clipboard empty' even when I just copied the url onto the clipboard. However, the  archive button (readthisshare) does. 
 - I have grown to regret the naming of the two key functions -- PSReadThisShare and ReadAction. Please recommend updated names that are more descriptive and useful, and come up with plans to propogate them everywhere that they are used or referenced. 
-
+- We need to create automated tests for everything in the app
+- 
 
 ## 🎯 ORGANIZED TODO ITEMS FOR LLM ASSISTANCE
 

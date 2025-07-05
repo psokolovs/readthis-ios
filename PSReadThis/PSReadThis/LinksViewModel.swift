@@ -259,6 +259,7 @@ class LinksViewModel: ObservableObject {
     @Published var lastPerformanceMetrics: PerformanceMetrics?
     @Published var averageLoadTime: TimeInterval = 0
     @Published var loadingHistory: [PerformanceMetrics] = []
+    @Published var lastLazyLoadTrigger: String = "No lazy load attempts yet"
     private let performanceMonitor = PerformanceMonitor()
     
     // v0.12 Optimization: Reduced page size for faster loading
@@ -267,6 +268,9 @@ class LinksViewModel: ObservableObject {
     // Basic pagination cursors (simplified)
     private var lastUpdatedAt: String? = nil
     private var lastId: String? = nil
+    
+    // Track the actual page size requested for hasMore calculation
+    private var actualPageSizeRequested = 15
     
     // v0.12 Performance Optimizations
     private let persistentCache = PersistentCacheManager()
@@ -318,16 +322,16 @@ class LinksViewModel: ObservableObject {
         }
     }
 
-    func fetchLinks(reset: Bool = false) async {
-        print("[LinksViewModel] 🚀 v0.12 Ultra-fast fetch - reset=\(reset), filter=\(currentFilter.rawValue)")
+    func fetchLinks(reset: Bool = false, contentFilter: String = "all") async {
         performanceMonitor.startTiming()
-        performanceMonitor.setCacheStrategy("v0.12-aggressive")
+        performanceMonitor.setCacheStrategy("v0.15.1-production")
         
         if reset {
             links = []
             lastUpdatedAt = nil
             lastId = nil
             hasMore = true
+            actualPageSizeRequested = pageSize  // Reset to default
         }
         
         guard !isLoading, hasMore else {
@@ -342,10 +346,9 @@ class LinksViewModel: ObservableObject {
             // v0.12 Optimization: Skip queue sync unless absolutely necessary
             var queueSyncTime: TimeInterval? = nil
             if reset {
-                let queueSyncStart = CFAbsoluteTimeGetCurrent()
-                await syncCriticalQueueOnly()
-                queueSyncTime = CFAbsoluteTimeGetCurrent() - queueSyncStart
-                print("[LinksViewModel] ⏱️ Critical queue sync: \(String(format: "%.2f", queueSyncTime!))s")
+                            let queueSyncStart = CFAbsoluteTimeGetCurrent()
+            await syncCriticalQueueOnly()
+            queueSyncTime = CFAbsoluteTimeGetCurrent() - queueSyncStart
             }
             
             performanceMonitor.markStep("queue_sync_complete")
@@ -356,22 +359,19 @@ class LinksViewModel: ObservableObject {
             performanceMonitor.markStep("auth_complete")
             
             let authTime = CFAbsoluteTimeGetCurrent() - authStart
-            print("[LinksViewModel] ⚡ v0.12 Auth: \(String(format: "%.2f", authTime))s")
             
             performanceMonitor.markStep("anon_key_complete")
             
             // v0.12 Optimization: Optimized API call with minimal data
             let apiStart = CFAbsoluteTimeGetCurrent()
-            let url = buildOptimizedAPIURL(userId: userId)
+            let url = buildOptimizedAPIURL(userId: userId, contentFilter: contentFilter)
             
             let request = buildOptimizedRequest(url: url, anonKey: anonKey, token: token)
             
-            print("[LinksViewModel] 🌐 v0.12 API: \(url)")
             let (data, response) = try await URLSession.shared.data(for: request)
             performanceMonitor.markStep("api_complete")
             
             let apiTime = CFAbsoluteTimeGetCurrent() - apiStart
-            print("[LinksViewModel] ⚡ v0.12 API call: \(String(format: "%.2f", apiTime))s")
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 if let http = response as? HTTPURLResponse {
@@ -388,15 +388,13 @@ class LinksViewModel: ObservableObject {
             performanceMonitor.setRecordCount(newLinks.count)
             
             let parseTime = CFAbsoluteTimeGetCurrent() - parseStart
-            print("[LinksViewModel] ⚡ v0.12 Parsing: \(String(format: "%.2f", parseTime))s (\(newLinks.count) records)")
             
-            // v0.12 Optimization: Batch UI updates
+            // UI updates
             let uiStart = CFAbsoluteTimeGetCurrent()
             await updateUIOptimized(newLinks: newLinks)
             performanceMonitor.markStep("ui_complete")
             
             let uiTime = CFAbsoluteTimeGetCurrent() - uiStart
-            print("[LinksViewModel] ⚡ v0.12 UI update: \(String(format: "%.2f", uiTime))s")
             
             // Store performance metrics
             let metrics = performanceMonitor.getMetrics(queueSyncTime: queueSyncTime)
@@ -411,18 +409,18 @@ class LinksViewModel: ObservableObject {
             // Calculate average load time
             averageLoadTime = loadingHistory.map(\.totalTime).reduce(0, +) / Double(loadingHistory.count)
             
-            let grade = metrics.totalTime < 2.0 ? "🟢 EXCELLENT" : metrics.totalTime < 3.0 ? "🟡 GOOD" : "🔴 NEEDS WORK"
-            print("[LinksViewModel] \(grade) v0.12 Total: \(String(format: "%.2f", metrics.totalTime))s, Average: \(String(format: "%.2f", averageLoadTime))s")
+            let grade = metrics.totalTime < 2.0 ? "🟢" : metrics.totalTime < 3.0 ? "🟡" : "🔴"
+            print("[LinksViewModel] \(grade) Load: \(String(format: "%.2f", metrics.totalTime))s")
             
         } catch {
-            print("[LinksViewModel] ❌ v0.12 Fetch error: \(error)")
+            print("[LinksViewModel] ❌ Fetch error: \(error)")
             self.error = "Failed to load links: \(error.localizedDescription)"
         }
         
         isLoading = false
     }
     
-    // MARK: - v0.12 Optimized Helper Methods
+    // MARK: - Optimized Helper Methods
     
     private func getAuthDataOptimized() async -> (token: String, anonKey: String, userId: String) {
         // Try cache first
@@ -458,8 +456,8 @@ class LinksViewModel: ObservableObject {
         }
     }
     
-    private func buildOptimizedAPIURL(userId: String) -> URL {
-        // v0.12 Optimization: Using select=* to avoid field selection issues, focus optimization on caching and other areas
+    private func buildOptimizedAPIURL(userId: String, contentFilter: String = "all") -> URL {
+        // Using select=* to avoid field selection issues, focus optimization on caching and other areas
         var urlString = "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?select=*&order=updated_at.desc.nullslast,id.desc&limit=\(pageSize)"
         
         // Add status filter
@@ -472,9 +470,24 @@ class LinksViewModel: ObservableObject {
             break
         }
         
+        // Add content filter (client-side filtering for better reliability)
+        switch contentFilter {
+        case "starred", "video", "audio", "article":
+            // For these, we'll use larger batch sizes and client-side filtering
+            // Increase page size significantly for better content filter coverage
+            let currentPageSize = pageSize * 5  // Increased from 3x to 5x
+            actualPageSizeRequested = currentPageSize
+            urlString = urlString.replacingOccurrences(of: "&limit=\(pageSize)", with: "&limit=\(currentPageSize)")
+        default:
+            actualPageSizeRequested = pageSize
+            break
+        }
+        
         // Add pagination if needed
         if let lastTimestamp = lastUpdatedAt, let lastLinkId = lastId {
-            let encodedTimestamp = lastTimestamp.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? lastTimestamp
+            // Fix URL encoding: manually encode + as %2B to prevent it being decoded as space
+            var encodedTimestamp = lastTimestamp.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? lastTimestamp
+            encodedTimestamp = encodedTimestamp.replacingOccurrences(of: "+", with: "%2B")
             urlString += "&or=(updated_at.lt.\(encodedTimestamp),and(updated_at.eq.\(encodedTimestamp),id.lt.\(lastLinkId)))"
         }
         
@@ -489,7 +502,7 @@ class LinksViewModel: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         
-        // v0.12 Optimization: Aggressive timeout and caching
+        // Aggressive timeout and caching
         request.timeoutInterval = 5.0
         request.cachePolicy = .returnCacheDataElseLoad
         
@@ -518,9 +531,14 @@ class LinksViewModel: ObservableObject {
             return link
         }
         
+
+        
         // Batch update
         links.append(contentsOf: validLinks)
-        hasMore = newLinks.count == pageSize
+        
+        // Fix: hasMore should be based on the actual page size requested
+        // If we got fewer than the requested page size from the API, there are no more links
+        hasMore = newLinks.count == actualPageSizeRequested
         
         // Update pagination cursors
         lastUpdatedAt = newLinks.last?.updated_at
@@ -728,6 +746,67 @@ class LinksViewModel: ObservableObject {
         }
         print("[LinksViewModel] === END TEST SAVE ===")
     }
+    
+    // Create test starred link for debugging
+    func createTestStarredLink() async {
+        print("[LinksViewModel] === CREATE TEST STARRED LINK ===")
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            let userId = extractUserIdFromToken(token) ?? "unknown"
+            let testUrl = "https://github.com/starred-test-\(Date().timeIntervalSince1970)"
+            
+            print("[LinksViewModel] Creating test starred link: \(testUrl)")
+            print("[LinksViewModel] Using user_id: \(userId)")
+            
+            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            guard let anonKey = await PSReadThisConfig.shared.getAnonKey() else {
+                print("[LinksViewModel] ❌ Failed to get anon key for starred test")
+                return
+            }
+            request.setValue(anonKey, forHTTPHeaderField: "apikey")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            // Create starred link with ⭐ prefix in title (using consistent format)
+            let starEmoji = "⭐"
+            let testTitle = "\(starEmoji) Test Starred Link - \(Date())"
+            print("[LinksViewModel] Creating starred link with title: '\(testTitle)'")
+            
+            let body = [
+                "raw_url": testUrl, 
+                "title": testTitle,  // Add star prefix with consistent emoji
+                "description": "This is a test starred link for debugging the filter",
+                "status": "read",  // Put in archive so we can test starred filter
+                "user_id": userId
+            ]
+            request.httpBody = try JSONEncoder().encode(body)
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let responseBody = String(data: data, encoding: .utf8) ?? ""
+            
+            if let http = response as? HTTPURLResponse {
+                print("[LinksViewModel] Starred Save Status: \(http.statusCode)")
+                print("[LinksViewModel] Starred Save Response: \(responseBody)")
+                
+                if (200...299).contains(http.statusCode) {
+                    print("[LinksViewModel] ✅ STARRED LINK CREATED SUCCESSFULLY!")
+                    
+                    // Wait a moment then refresh to show new starred link
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    await fetchLinks(reset: true)
+                } else {
+                    print("[LinksViewModel] ❌ STARRED LINK CREATION FAILED!")
+                }
+            }
+        } catch {
+            print("[LinksViewModel] Starred link creation ERROR: \(error)")
+        }
+        print("[LinksViewModel] === END CREATE STARRED TEST ===")
+    }
+    
+
     
     // Toggle read status contextually - offline-first approach
     func markAsRead(_ link: Link) async {
@@ -1053,6 +1132,25 @@ extension LinksViewModel {
     
     /// Update star status in database
     private func updateLinkStarStatus(linkId: String, starred: Bool) async {
+        // Find the current link to get its title
+        guard let currentLink = links.first(where: { $0.id == linkId }) else {
+            print("[LinksViewModel] ❌ Could not find link to update star status")
+            return
+        }
+        
+        // Create the correct title with or without star prefix
+        let newTitle: String
+        let starEmoji = "⭐"
+        
+        if starred {
+            // Add star prefix if not already present
+            let cleanTitle = currentLink.cleanTitle
+            newTitle = "\(starEmoji) \(cleanTitle)"
+        } else {
+            // Remove star prefix if present
+            newTitle = currentLink.cleanTitle
+        }
+        
         do {
             let token = try await TokenManager.shared.getValidAccessToken()
             let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(linkId)")!
@@ -1067,7 +1165,8 @@ extension LinksViewModel {
             request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             
-            let body = ["title": starred ? "⭐" : ""]
+            // FIXED: Set the complete title with or without star prefix
+            let body = ["title": newTitle]
             request.httpBody = try JSONEncoder().encode(body)
             
             let (_, response) = try await URLSession.shared.data(for: request)

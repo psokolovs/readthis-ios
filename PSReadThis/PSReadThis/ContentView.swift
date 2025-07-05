@@ -29,7 +29,8 @@ struct ContentView: View {
                         ) {
                             Task {
                                 viewModel.currentFilter = .unread
-                                await viewModel.fetchLinks(reset: true)
+                                selectedContentFilter = "all"  // Reset content filter when switching tabs
+                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
                             }
                         }
                         
@@ -40,7 +41,8 @@ struct ContentView: View {
                         ) {
                             Task {
                                 viewModel.currentFilter = .read
-                                await viewModel.fetchLinks(reset: true)
+                                selectedContentFilter = "all"  // Reset content filter when switching tabs
+                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
                             }
                         }
                         
@@ -56,31 +58,63 @@ struct ContentView: View {
                                 isSelected: selectedContentFilter == "all"
                             ) {
                                 selectedContentFilter = "all"
+                                Task {
+                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                }
                             }
                             
-                            ContentFilterChip(
-                                title: "🎬 Videos",
-                                isSelected: selectedContentFilter == "video"
-                            ) {
-                                selectedContentFilter = "video"
+                            // Show Starred filter only for Archive
+                            if viewModel.currentFilter == .read {
+                                ContentFilterChip(
+                                    title: "⭐ Starred",
+                                    isSelected: selectedContentFilter == "starred"
+                                ) {
+                                    print("[ContentView] 🌟 STARRED FILTER BUTTON TAPPED!")
+                                    print("[ContentView] 🌟 Setting selectedContentFilter to 'starred'")
+                                    selectedContentFilter = "starred"
+                                    print("[ContentView] 🌟 selectedContentFilter is now: '\(selectedContentFilter)'")
+                                    Task {
+                                        print("[ContentView] 🌟 Calling fetchLinks with contentFilter: '\(selectedContentFilter)'")
+                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                    }
+                                }
                             }
                             
-                            ContentFilterChip(
-                                title: "🎵 Audio",
-                                isSelected: selectedContentFilter == "audio"
-                            ) {
-                                selectedContentFilter = "audio"
-                            }
-                            
-                            ContentFilterChip(
-                                title: "📰 Articles",
-                                isSelected: selectedContentFilter == "article"
-                            ) {
-                                selectedContentFilter = "article"
+                            // Show content type filters only for To Read
+                            if viewModel.currentFilter == .unread {
+                                ContentFilterChip(
+                                    title: "🎬 Videos",
+                                    isSelected: selectedContentFilter == "video"
+                                ) {
+                                    selectedContentFilter = "video"
+                                    Task {
+                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                    }
+                                }
+                                
+                                ContentFilterChip(
+                                    title: "🎵 Audio",
+                                    isSelected: selectedContentFilter == "audio"
+                                ) {
+                                    selectedContentFilter = "audio"
+                                    Task {
+                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                    }
+                                }
+                                
+                                ContentFilterChip(
+                                    title: "📰 Articles",
+                                    isSelected: selectedContentFilter == "article"
+                                ) {
+                                    selectedContentFilter = "article"
+                                    Task {
+                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.trailing, 8) // Extra padding to ensure Articles chip is fully visible
+                        .padding(.trailing, 8) // Extra padding to ensure chips are fully visible
                     }
                 }
                 .padding(.vertical, 12)
@@ -129,7 +163,7 @@ struct ContentView: View {
         }
         .task {
             // Simple initial load
-            await viewModel.fetchLinks(reset: true)
+            await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
         }
     }
 }
@@ -141,10 +175,25 @@ struct SimpleLinksList: View {
     let contentFilter: String
     
     private var filteredLinks: [Link] {
-        guard contentFilter != "all" else { return viewModel.links }
+        // Always print what filter we're using
+        print("[ContentView] 🚀 FILTERING WITH: '\(contentFilter)' (total links: \(viewModel.links.count))")
         
-        return viewModel.links.filter { link in
+        guard contentFilter != "all" else { 
+            print("[ContentView] 🚀 RETURNING ALL LINKS: \(viewModel.links.count)")
+            return viewModel.links 
+        }
+        
+        let filtered = viewModel.links.filter { link in
             switch contentFilter {
+            case "starred":
+                let isStarred = link.isStarred
+                let title = link.title ?? "nil"
+                // Enhanced debug logging for starred filter
+                print("[ContentView] 🔍 Link: '\(title)' -> isStarred: \(isStarred)")
+                print("[ContentView] 🔍   - hasPrefix('⭐ '): \(title.hasPrefix("⭐ "))")
+                print("[ContentView] 🔍   - hasPrefix('⭐'): \(title.hasPrefix("⭐"))")
+                print("[ContentView] 🔍   - cleanTitle: '\(link.cleanTitle)'")
+                return isStarred
             case "video":
                 return isVideoLink(link)
             case "audio":
@@ -155,6 +204,19 @@ struct SimpleLinksList: View {
                 return true
             }
         }
+        
+        // Enhanced debug logging for starred filter results
+        if contentFilter == "starred" {
+            print("[ContentView] 🌟 STARRED FILTER RESULTS:")
+            print("[ContentView] 🌟   - Filtered count: \(filtered.count)")
+            print("[ContentView] 🌟   - Total links: \(viewModel.links.count)")
+            print("[ContentView] 🌟   - All titles: \(viewModel.links.map { $0.title ?? "nil" })")
+            let starredTitles = viewModel.links.filter { $0.isStarred }.map { $0.title ?? "nil" }
+            print("[ContentView] 🌟   - Starred titles found: \(starredTitles)")
+        }
+        
+        print("[ContentView] 🚀 FILTER RESULT: \(filtered.count) links")
+        return filtered
     }
     
     var body: some View {
@@ -169,8 +231,15 @@ struct SimpleLinksList: View {
                     onDelete: { await viewModel.deleteLink(link) }
                 )
                 .onAppear {
-                    if link == viewModel.links.last && viewModel.hasMore {
-                        Task { await viewModel.fetchLinks() }
+                    // Fix: Check against filteredLinks.last instead of viewModel.links.last
+                    let isLastLink = link == filteredLinks.last
+                    
+                    if isLastLink && viewModel.hasMore {
+                        // Show visual indicator that lazy loading triggered
+                        viewModel.lastLazyLoadTrigger = "🚀 Lazy load triggered for: \(link.cleanTitle.prefix(20))..."
+                        Task { await viewModel.fetchLinks(contentFilter: contentFilter) }
+                    } else {
+                        viewModel.lastLazyLoadTrigger = "❌ Not triggered - isLast: \(isLastLink), hasMore: \(viewModel.hasMore)"
                     }
                 }
             }
@@ -199,7 +268,7 @@ struct SimpleLinksList: View {
             }
         }
         .refreshable {
-            await viewModel.fetchLinks(reset: true)
+            await viewModel.fetchLinks(reset: true, contentFilter: contentFilter)
         }
         .listStyle(.plain)
     }
@@ -573,7 +642,7 @@ struct DeveloperModeView: View {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.12 (Ultra Performance)")
+                        Text("0.15.0 (Auto-Starred Links)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)
@@ -639,11 +708,28 @@ struct DeveloperModeView: View {
                     } else {
                         Text("No performance data yet. Load some links first.")
                             .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
                     }
+                    
+                    // Lazy Load Debug Info
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("🔄 Lazy Load Debug")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Text("Last trigger attempt:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text(viewModel.lastLazyLoadTrigger)
+                            .font(.footnote)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray5))
+                            .cornerRadius(6)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
                     
                     // Action Buttons
                     VStack(spacing: 12) {
@@ -688,6 +774,17 @@ struct DeveloperModeView: View {
                         .frame(maxWidth: .infinity)
                         .background(Color.blue.opacity(0.1))
                         .foregroundColor(.blue)
+                        .clipShape(Capsule())
+                        
+                        Button("⭐ Create Test Starred Link") {
+                            Task {
+                                await viewModel.createTestStarredLink()
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.yellow.opacity(0.1))
+                        .foregroundColor(.orange)
                         .clipShape(Capsule())
                     }
                     

@@ -17,22 +17,30 @@ struct Link: Identifiable, Codable, Equatable {
     
     /// Whether this link is starred (has ⭐ prefix in title)
     var isStarred: Bool {
-        title?.hasPrefix("⭐ ") ?? false
+        guard let title = title else { return false }
+        // Check for star emoji with space OR just star emoji (more flexible)
+        return title.hasPrefix("⭐ ") || title.hasPrefix("⭐")
     }
     
     /// Title without the star prefix
     var cleanTitle: String {
         guard let title = title else { return "Untitled" }
-        return title.hasPrefix("⭐ ") ? String(title.dropFirst(2)) : title
+        if title.hasPrefix("⭐ ") {
+            return String(title.dropFirst(2))
+        } else if title.hasPrefix("⭐") {
+            return String(title.dropFirst(1))
+        }
+        return title
     }
     
     /// Create a new link with star status toggled
     func withToggledStar() -> Link {
+        let starEmoji = "⭐"
         let newTitle: String
         if isStarred {
             newTitle = cleanTitle
         } else {
-            newTitle = "⭐ " + (title ?? "Untitled")
+            newTitle = "\(starEmoji) \(title ?? "Untitled")"
         }
         
         return Link(
