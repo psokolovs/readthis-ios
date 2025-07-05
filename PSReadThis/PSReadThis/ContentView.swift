@@ -471,8 +471,6 @@ func isAudioLink(_ link: Link) -> Bool {
 }
 
 func isArticleLink(_ link: Link) -> Bool {
-    let url = (link.resolved_url ?? link.raw_url ?? "").lowercased()
-    
     // Everything else is an article (default case)
     return !isVideoLink(link) && !isAudioLink(link)
 }
@@ -560,63 +558,150 @@ struct SafariView: UIViewControllerRepresentable {
 struct DeveloperModeView: View {
     @ObservedObject var viewModel: LinksViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var showingPerformanceDetails = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Text("Developer Options")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                // Version Label
-                HStack {
-                    Text("Version:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Text("0.11")
-                        .font(.subheadline)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Developer Options")
+                        .font(.title2)
                         .fontWeight(.semibold)
-                        .foregroundColor(.blue)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-                
-                Button("Clear Authentication & Retry") {
-                    Task {
-                        await viewModel.clearAuthentication()
-                        dismiss()
+                    
+                    // Version Label
+                    HStack {
+                        Text("Version:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text("0.11 (Performance Monitoring)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                        Spacer()
                     }
-                }
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .foregroundColor(.red)
-                .clipShape(Capsule())
-                
-                Button("Test Network Connection") {
-                    Task {
-                        await viewModel.testNetworkConnectivity()
-                    }
-                }
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .clipShape(Capsule())
-                
-                if let error = viewModel.error {
-                    Text("Error: \(error)")
-                        .font(.caption)
-                        .foregroundColor(.red)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
+                    
+                    // Performance Summary
+                    if let metrics = viewModel.lastPerformanceMetrics {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("⚡ Performance Summary")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                Spacer()
+                                Button("Details") {
+                                    showingPerformanceDetails.toggle()
+                                }
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            }
+                            
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Last Load:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(String(format: "%.2f", metrics.totalTime))s")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(metrics.totalTime > 3.0 ? .red : metrics.totalTime > 1.5 ? .orange : .green)
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("Average:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(String(format: "%.2f", viewModel.averageLoadTime))s")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(viewModel.averageLoadTime > 3.0 ? .red : viewModel.averageLoadTime > 1.5 ? .orange : .green)
+                                }
+                                
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text("Cache Hit:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text("\(getCacheEfficiency(metrics: metrics))%")
+                                        .font(.title3)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(getCacheEfficiency(metrics: metrics) > 70 ? .green : getCacheEfficiency(metrics: metrics) > 40 ? .orange : .red)
+                                }
+                            }
+                        }
                         .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                    } else {
+                        Text("No performance data yet. Load some links first.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                    }
+                    
+                    // Action Buttons
+                    VStack(spacing: 12) {
+                        Button("🔄 Refresh & Measure") {
+                            Task {
+                                await viewModel.fetchLinks(reset: true)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.green.opacity(0.1))
+                        .foregroundColor(.green)
+                        .clipShape(Capsule())
+                        
+                        Button("🧹 Clear Performance Caches") {
+                            viewModel.clearPerformanceCaches()
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.orange.opacity(0.1))
+                        .foregroundColor(.orange)
+                        .clipShape(Capsule())
+                        
+                        Button("🔐 Clear Authentication & Retry") {
+                            Task {
+                                await viewModel.clearAuthentication()
+                                dismiss()
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
                         .background(Color.red.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .foregroundColor(.red)
+                        .clipShape(Capsule())
+                        
+                        Button("🌐 Test Network Connection") {
+                            Task {
+                                await viewModel.testNetworkConnectivity()
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue.opacity(0.1))
+                        .foregroundColor(.blue)
+                        .clipShape(Capsule())
+                    }
+                    
+                    if let error = viewModel.error {
+                        Text("Error: \(error)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding()
+                            .background(Color.red.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
-                
-                Spacer()
+                .padding()
             }
-            .padding()
             .navigationTitle("Developer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -626,7 +711,99 @@ struct DeveloperModeView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingPerformanceDetails) {
+                PerformanceDetailsView(viewModel: viewModel)
+            }
         }
+    }
+    
+    private func getCacheEfficiency(metrics: PerformanceMetrics) -> Int {
+        let total = metrics.cacheHits + metrics.cacheMisses
+        return total > 0 ? Int((Double(metrics.cacheHits) / Double(total)) * 100) : 0
+    }
+}
+
+// MARK: - Performance Details View
+struct PerformanceDetailsView: View {
+    @ObservedObject var viewModel: LinksViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    diagnosticsSection
+                    
+                    if !viewModel.loadingHistory.isEmpty {
+                        performanceTrendSection
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Performance Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private var diagnosticsSection: some View {
+        Text(viewModel.getPerformanceDiagnostics())
+            .font(.system(.body, design: .monospaced))
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+    }
+    
+    private var performanceTrendSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("📈 Performance Trend")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            ForEach(Array(viewModel.loadingHistory.reversed().prefix(5).enumerated()), id: \.offset) { index, metrics in
+                performanceHistoryRow(index: index, metrics: metrics)
+            }
+        }
+    }
+    
+    private func performanceHistoryRow(index: Int, metrics: PerformanceMetrics) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Load #\(viewModel.loadingHistory.count - index)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("\(String(format: "%.2f", metrics.totalTime))s")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("At \(timeString(from: metrics.timestamp))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Cache: \(metrics.cacheHits)/\(metrics.cacheHits + metrics.cacheMisses)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+    
+    private func timeString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        return formatter.string(from: date)
     }
 }
 

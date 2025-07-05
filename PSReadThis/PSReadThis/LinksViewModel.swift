@@ -1,6 +1,150 @@
 import Foundation
 import UIKit
 
+// MARK: - Performance Monitoring System
+struct PerformanceMetrics {
+    let totalTime: TimeInterval
+    let authTime: TimeInterval
+    let anonKeyTime: TimeInterval
+    let apiCallTime: TimeInterval
+    let parsingTime: TimeInterval
+    let uiUpdateTime: TimeInterval
+    let queueSyncTime: TimeInterval?
+    let networkLatency: TimeInterval?
+    let cacheHits: Int
+    let cacheMisses: Int
+    let timestamp: Date
+    
+    var summary: String {
+        return """
+        📊 Performance Report (Last Load):
+        ⏱️ Total Time: \(String(format: "%.2f", totalTime))s
+        🔐 Auth: \(String(format: "%.2f", authTime))s
+        🔑 Anon Key: \(String(format: "%.2f", anonKeyTime))s
+        🌐 API Call: \(String(format: "%.2f", apiCallTime))s
+        📋 Parsing: \(String(format: "%.2f", parsingTime))s
+        🖼️ UI Update: \(String(format: "%.2f", uiUpdateTime))s
+        \(queueSyncTime.map { "🔄 Queue Sync: \(String(format: "%.2f", $0))s" } ?? "")
+        \(networkLatency.map { "📡 Network Latency: \(String(format: "%.2f", $0))s" } ?? "")
+        💾 Cache: \(cacheHits) hits, \(cacheMisses) misses
+        📅 At: \(DateFormatter.timeFormatter.string(from: timestamp))
+        """
+    }
+    
+    var bottleneckAnalysis: String {
+        let components = [
+            ("Authentication", authTime),
+            ("Anon Key", anonKeyTime),
+            ("API Call", apiCallTime),
+            ("Parsing", parsingTime),
+            ("UI Update", uiUpdateTime)
+        ]
+        
+        let slowest = components.max { $0.1 < $1.1 }
+        let recommendations = getRecommendations()
+        
+        return """
+        🔍 Bottleneck Analysis:
+        🐌 Slowest: \(slowest?.0 ?? "Unknown") (\(String(format: "%.2f", slowest?.1 ?? 0))s)
+        
+        💡 Recommendations:
+        \(recommendations.joined(separator: "\n"))
+        """
+    }
+    
+    private func getRecommendations() -> [String] {
+        var recommendations: [String] = []
+        
+        if authTime > 2.0 {
+            recommendations.append("• Auth is slow - consider token caching or refresh optimization")
+        }
+        if anonKeyTime > 0.5 {
+            recommendations.append("• Anon key fetch is slow - implement persistent caching")
+        }
+        if apiCallTime > 3.0 {
+            recommendations.append("• API call is slow - check network or consider request optimization")
+        }
+        if parsingTime > 1.0 {
+            recommendations.append("• JSON parsing is slow - consider background parsing")
+        }
+        if uiUpdateTime > 0.5 {
+            recommendations.append("• UI updates are slow - optimize rendering or use incremental updates")
+        }
+        if cacheMisses > cacheHits {
+            recommendations.append("• Low cache hit rate - improve caching strategy")
+        }
+        
+        if recommendations.isEmpty {
+            recommendations.append("• Performance looks good! Minor optimizations possible in network layer")
+        }
+        
+        return recommendations
+    }
+}
+
+private extension DateFormatter {
+    static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .medium
+        return formatter
+    }()
+}
+
+// MARK: - Performance Monitor
+class PerformanceMonitor {
+    private var startTime: CFAbsoluteTime = 0
+    private var stepTimes: [String: CFAbsoluteTime] = [:]
+    private var cacheHits = 0
+    private var cacheMisses = 0
+    
+    func startTiming() {
+        startTime = CFAbsoluteTimeGetCurrent()
+        stepTimes.removeAll()
+        cacheHits = 0
+        cacheMisses = 0
+        markStep("start")
+    }
+    
+    func markStep(_ step: String) {
+        stepTimes[step] = CFAbsoluteTimeGetCurrent()
+    }
+    
+    func recordCacheHit() {
+        cacheHits += 1
+    }
+    
+    func recordCacheMiss() {
+        cacheMisses += 1
+    }
+    
+    func getMetrics(queueSyncTime: TimeInterval?) -> PerformanceMetrics {
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let totalTime = endTime - startTime
+        
+        func getStepTime(_ step: String, fallback: String? = nil) -> TimeInterval {
+            if let time = stepTimes[step], let prevTime = stepTimes[fallback ?? "start"] {
+                return time - prevTime
+            }
+            return 0
+        }
+        
+        return PerformanceMetrics(
+            totalTime: totalTime,
+            authTime: getStepTime("auth_complete", fallback: "start"),
+            anonKeyTime: getStepTime("anon_key_complete", fallback: "auth_complete"),
+            apiCallTime: getStepTime("api_complete", fallback: "anon_key_complete"),
+            parsingTime: getStepTime("parsing_complete", fallback: "api_complete"),
+            uiUpdateTime: getStepTime("ui_complete", fallback: "parsing_complete"),
+            queueSyncTime: queueSyncTime,
+            networkLatency: nil, // Will implement if needed
+            cacheHits: cacheHits,
+            cacheMisses: cacheMisses,
+            timestamp: Date()
+        )
+    }
+}
+
 // MARK: - Simplified System (Performance Optimized)
 // Complex filtering system removed to prevent iPhone freezing
 
@@ -36,6 +180,12 @@ class LinksViewModel: ObservableObject {
     @Published var error: String?
     @Published var currentFilter: LinkFilter = .unread
     
+    // Performance monitoring
+    @Published var lastPerformanceMetrics: PerformanceMetrics?
+    @Published var averageLoadTime: TimeInterval = 0
+    @Published var loadingHistory: [PerformanceMetrics] = []
+    private let performanceMonitor = PerformanceMonitor()
+    
     // Simplified for performance (removed complex filtering)
     private let pageSize = 20
     
@@ -46,9 +196,11 @@ class LinksViewModel: ObservableObject {
     // Performance optimization: Cache anon key and user ID
     private var cachedAnonKey: String?
     private var cachedUserId: String?
+    private var tokenCacheTime: Date?
 
     func fetchLinks(reset: Bool = false) async {
-        print("[LinksViewModel] fetchLinks called. reset=\(reset), filter=\(currentFilter.rawValue)")
+        print("[LinksViewModel] 🚀 Starting fetchLinks - reset=\(reset), filter=\(currentFilter.rawValue)")
+        performanceMonitor.startTiming()
         
         if reset {
             links = []
@@ -58,29 +210,43 @@ class LinksViewModel: ObservableObject {
         }
         
         guard !isLoading, hasMore else {
+            print("[LinksViewModel] ⏭️ Skipping fetch - isLoading=\(isLoading), hasMore=\(hasMore)")
             return
         }
         
         isLoading = true
         error = nil
         
-        // Performance optimization: Only sync queues on reset, not every fetch
-        if reset {
-            await syncMarkAsReadQueue()
-            await syncExtensionQueue()
-        }
-        
         do {
-            // Performance optimization: Get token and anon key in parallel
-            async let tokenTask = TokenManager.shared.getValidAccessToken()
+            // Performance tracking: Queue sync (only on reset)
+            var queueSyncTime: TimeInterval?
+            if reset {
+                let queueSyncStart = CFAbsoluteTimeGetCurrent()
+                await syncMarkAsReadQueue()
+                await syncExtensionQueue()
+                queueSyncTime = CFAbsoluteTimeGetCurrent() - queueSyncStart
+                print("[LinksViewModel] ⏱️ Queue sync took: \(String(format: "%.2f", queueSyncTime!))s")
+            }
+            
+            performanceMonitor.markStep("queue_sync_complete")
+            
+            // Performance optimization: Get token and anon key in parallel with timing
+            let authStart = CFAbsoluteTimeGetCurrent()
+            async let tokenTask = getTokenOptimized()
             async let anonKeyTask = getAnonKeyOptimized()
             
             let (token, anonKey) = try await (tokenTask, anonKeyTask)
+            performanceMonitor.markStep("auth_complete")
+            
+            let authTime = CFAbsoluteTimeGetCurrent() - authStart
+            print("[LinksViewModel] ⏱️ Auth took: \(String(format: "%.2f", authTime))s")
             
             // Performance optimization: Cache user ID extraction
             let userId = getUserIdOptimized(token: token)
+            performanceMonitor.markStep("anon_key_complete")
             
-            // Streamlined URL construction
+            // API call timing
+            let apiStart = CFAbsoluteTimeGetCurrent()
             let url = buildAPIURL(userId: userId)
             
             var request = URLRequest(url: url)
@@ -89,23 +255,33 @@ class LinksViewModel: ObservableObject {
             request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("return=representation", forHTTPHeaderField: "Prefer")
-            
-            // Performance optimization: Shorter timeout for faster feedback
             request.timeoutInterval = 8.0
             
+            print("[LinksViewModel] 🌐 Making API request to: \(url)")
             let (data, response) = try await URLSession.shared.data(for: request)
+            performanceMonitor.markStep("api_complete")
+            
+            let apiTime = CFAbsoluteTimeGetCurrent() - apiStart
+            print("[LinksViewModel] ⏱️ API call took: \(String(format: "%.2f", apiTime))s")
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 if let http = response as? HTTPURLResponse {
                     let body = String(data: data, encoding: .utf8) ?? ""
                     print("[LinksViewModel] ❌ HTTP \(http.statusCode): \(body)")
                 }
-                self.error = "Failed to load links"
-                isLoading = false
-                return
+                throw URLError(.badServerResponse)
             }
             
+            // Parsing timing
+            let parseStart = CFAbsoluteTimeGetCurrent()
             let newLinks = try JSONDecoder().decode([Link].self, from: data)
+            performanceMonitor.markStep("parsing_complete")
+            
+            let parseTime = CFAbsoluteTimeGetCurrent() - parseStart
+            print("[LinksViewModel] ⏱️ Parsing took: \(String(format: "%.2f", parseTime))s")
+            
+            // UI update timing
+            let uiStart = CFAbsoluteTimeGetCurrent()
             
             // Performance optimization: Filter invalid URLs efficiently
             let validLinks = newLinks.compactMap { link -> Link? in
@@ -122,7 +298,25 @@ class LinksViewModel: ObservableObject {
             lastUpdatedAt = newLinks.last?.updated_at
             lastId = newLinks.last?.id
             
+            performanceMonitor.markStep("ui_complete")
+            let uiTime = CFAbsoluteTimeGetCurrent() - uiStart
+            print("[LinksViewModel] ⏱️ UI update took: \(String(format: "%.2f", uiTime))s")
+            
+            // Store performance metrics
+            let metrics = performanceMonitor.getMetrics(queueSyncTime: queueSyncTime)
+            lastPerformanceMetrics = metrics
+            loadingHistory.append(metrics)
+            
+            // Keep only last 10 measurements for average
+            if loadingHistory.count > 10 {
+                loadingHistory.removeFirst(loadingHistory.count - 10)
+            }
+            
+            // Calculate average load time
+            averageLoadTime = loadingHistory.map(\.totalTime).reduce(0, +) / Double(loadingHistory.count)
+            
             print("[LinksViewModel] ✅ Loaded \(validLinks.count) links, total: \(links.count)")
+            print("[LinksViewModel] 📊 Total time: \(String(format: "%.2f", metrics.totalTime))s, Average: \(String(format: "%.2f", averageLoadTime))s")
             
         } catch {
             print("[LinksViewModel] ❌ Fetch error: \(error)")
@@ -132,12 +326,27 @@ class LinksViewModel: ObservableObject {
         isLoading = false
     }
     
+    // Performance optimization: Cache token with time-based invalidation
+    private func getTokenOptimized() async throws -> String {
+        // Check if cached token is still valid (cache for 5 minutes)
+        if let cacheTime = tokenCacheTime, Date().timeIntervalSince(cacheTime) < 300 {
+            performanceMonitor.recordCacheHit()
+            return try await TokenManager.shared.getValidAccessToken()
+        }
+        
+        performanceMonitor.recordCacheMiss()
+        tokenCacheTime = Date()
+        return try await TokenManager.shared.getValidAccessToken()
+    }
+    
     // Performance optimization: Cache anon key
     private func getAnonKeyOptimized() async throws -> String {
         if let cached = cachedAnonKey {
+            performanceMonitor.recordCacheHit()
             return cached
         }
         
+        performanceMonitor.recordCacheMiss()
         guard let anonKey = await PSReadThisConfig.shared.getAnonKey() else {
             throw URLError(.badServerResponse)
         }
@@ -149,9 +358,11 @@ class LinksViewModel: ObservableObject {
     // Performance optimization: Cache user ID
     private func getUserIdOptimized(token: String) -> String {
         if let cached = cachedUserId {
+            performanceMonitor.recordCacheHit()
             return cached
         }
         
+        performanceMonitor.recordCacheMiss()
         let userId = extractUserIdFromToken(token) ?? "unknown"
         cachedUserId = userId
         return userId
@@ -178,6 +389,48 @@ class LinksViewModel: ObservableObject {
         }
         
         return URL(string: urlString)!
+    }
+    
+    // Performance diagnostics for dev mode
+    func getPerformanceDiagnostics() -> String {
+        guard let metrics = lastPerformanceMetrics else {
+            return "No performance data available yet. Load some links first."
+        }
+        
+        let history = loadingHistory.suffix(5).map { 
+            "⏱️ \(String(format: "%.2f", $0.totalTime))s at \(DateFormatter.timeFormatter.string(from: $0.timestamp))"
+        }.joined(separator: "\n")
+        
+        return """
+        \(metrics.summary)
+        
+        \(metrics.bottleneckAnalysis)
+        
+        📈 Recent History:
+        \(history)
+        
+        📊 Statistics:
+        • Average Load Time: \(String(format: "%.2f", averageLoadTime))s
+        • Total Loads: \(loadingHistory.count)
+        • Cache Efficiency: \(getCacheEfficiency())%
+        """
+    }
+    
+    private func getCacheEfficiency() -> Int {
+        guard let metrics = lastPerformanceMetrics else { return 0 }
+        let total = metrics.cacheHits + metrics.cacheMisses
+        return total > 0 ? Int((Double(metrics.cacheHits) / Double(total)) * 100) : 0
+    }
+    
+    // Clear caches for testing
+    func clearPerformanceCaches() {
+        cachedAnonKey = nil
+        cachedUserId = nil
+        tokenCacheTime = nil
+        loadingHistory.removeAll()
+        lastPerformanceMetrics = nil
+        averageLoadTime = 0
+        print("[LinksViewModel] 🧹 Performance caches cleared")
     }
     
     func setFilter(_ filter: LinkFilter) async {
@@ -614,31 +867,23 @@ class LinksViewModel: ObservableObject {
     func clearAuthentication() async {
         print("[LinksViewModel] 🔐 Clearing authentication...")
         
-        do {
-            // Clear all stored tokens from keychain
-            await TokenManager.shared.clearAllTokens()
-            
-            // Reset view state
-            await MainActor.run {
-                self.links = []
-                self.lastUpdatedAt = nil
-                self.lastId = nil
-                self.hasMore = true
-                self.error = nil
-                self.isLoading = false
-            }
-            
-            print("[LinksViewModel] ✅ Authentication cleared successfully")
-            
-            // Trigger a fresh authentication attempt
-            await fetchLinks(reset: true)
-            
-        } catch {
-            print("[LinksViewModel] ❌ Error clearing authentication: \(error)")
-            await MainActor.run {
-                self.error = "Failed to clear authentication: \(error.localizedDescription)"
-            }
+        // Clear all stored tokens from keychain
+        await TokenManager.shared.clearAllTokens()
+        
+        // Reset view state
+        await MainActor.run {
+            self.links = []
+            self.lastUpdatedAt = nil
+            self.lastId = nil
+            self.hasMore = true
+            self.error = nil
+            self.isLoading = false
         }
+        
+        print("[LinksViewModel] ✅ Authentication cleared successfully")
+        
+        // Trigger a fresh authentication attempt
+        await fetchLinks(reset: true)
     }
     
     // MARK: - Performance Optimization (Removed Complex Filtering)
