@@ -273,32 +273,8 @@ class ActionViewController: UIViewController {
         print("[ReadAction] 📋 Queue after append: \(queue.count) items")
     }
 
-    private func syncQueueToSupabase() async -> [String: Any] {
-        print("[ReadAction] 🔄 syncQueueToSupabase")
-        do {
-            let token = try await TokenManager.shared.getValidAccessToken()
-            print("[ReadAction] 🔑 Obtained access token")
-            let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
-            var queue = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
-            print("[ReadAction] 🔁 Syncing unread URLs: \(queue)")
-            var sent: [String] = []
-                         for entry in queue {
-                 if let url = entry["url"] as? String,
-                    let status = entry["status"] as? String,
-                    await postLink(rawUrl: url, status: status, token: token) {
-                     sent.append(url)
-                 }
-             }
-            queue.removeAll(where: { sent.contains($0["url"] as? String ?? "") })
-            defaults.set(queue, forKey: "PSReadQueue")
-            print("[ReadAction] ✅ Sent unread URLs: \(sent)")
-            print("[ReadAction] 📦 Remaining unread queue: \(queue.count) items")
-            return ["success": !sent.isEmpty, "sent": sent]
-        } catch {
-            print("[ReadAction] ⚠️ Failed to get valid token or sync: \(error)")
-            return ["success": false]
-        }
-    }
+    // REMOVED: syncQueueToSupabase - too slow for extensions
+    // Queue sync now happens in main app only
 
     private func postLink(rawUrl: String, status: String, token: String) async -> Bool {
         do {
@@ -416,70 +392,62 @@ class ActionViewController: UIViewController {
         // Extract domain for display
         let domain = URL(string: url)?.host ?? "this page"
         
-        // GUARANTEED absolute timeout - this cannot be cancelled
-        let absoluteTimeoutTask = Task {
-            try await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds absolute max
-            if !Task.isCancelled {
-                print("[ReadAction] 🚨 10s absolute timeout - force completing")
-                await MainActor.run {
-                    self.showSavedOffline(domain: domain)
-                    self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
-                }
-            }
+        // IMMEDIATE SUCCESS FEEDBACK - Don't wait for sync
+        DispatchQueue.main.async {
+            self.showSaved(domain: domain)
         }
         
-        // Set up a timeout for immediate user feedback
-        let feedbackTask = Task {
-            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            if !Task.isCancelled {
-                print("[ReadAction] ⏰ 2s timeout - showing immediate feedback")
-                await MainActor.run {
-                    if isNetworkAvailable {
-                        self.showSavedOffline(domain: domain) // Show offline even if online but slow
-                    } else {
-                        self.showSavedOffline(domain: domain)
-                    }
-                    self.dismissAfterDelay()
-                }
-            }
-        }
-        
-        // Check network availability and attempt sync if online
+        // Quick background sync attempt (max 3 seconds)
         if isNetworkAvailable {
-            print("[ReadAction] 🌐 Online: Attempting to sync to Supabase")
-            let result = await syncQueueToSupabase()
+            print("[ReadAction] 🌐 Online: Quick sync attempt")
             
-            // Cancel timeout if we got a quick response
-            feedbackTask.cancel()
-            absoluteTimeoutTask.cancel()
-            
-            if result["success"] as? Bool == true {
-                // Successfully synced online
+            let quickSyncTask = Task {
+                // Only sync the current URL, not the entire queue
+                await quickSyncCurrentURL(url: url)
+                
+                // Notify main app of new content
+                notifyMainApp()
+                
+                // Complete after quick sync
                 DispatchQueue.main.async {
-                    print("[ReadAction] ✅ Link saved and uploaded for domain: \(domain)")
-                    self.showSaved(domain: domain)
-                    self.dismissAfterDelay(delay: 3.0)  // Longer display for success
+                    self.dismissAfterDelay(delay: 1.5)
                 }
-            } else {
-                // Online but sync failed - show error
+            }
+            
+            // Timeout for quick sync
+            Task {
+                try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds max
+                quickSyncTask.cancel()
                 DispatchQueue.main.async {
-                    print("[ReadAction] ❌ Failed to save or upload link")
-                    self.showError()
-                    self.dismissAfterDelay(delay: 2.0)  // Standard time for errors
+                    self.dismissAfterDelay(delay: 1.5)
                 }
             }
         } else {
-            // Cancel timeout since we're handling offline immediately
-            feedbackTask.cancel()
-            absoluteTimeoutTask.cancel()
-            
-            // Offline - show "saved for later sync" message
-            print("[ReadAction] 📱 Offline: Saved to queue for later sync")
+            // Offline - dismiss quickly
+            print("[ReadAction] 📱 Offline: Saved to queue")
             DispatchQueue.main.async {
                 self.showSavedOffline(domain: domain)
-                self.dismissAfterDelay(delay: 3.0)  // Longer display for offline success
+                self.dismissAfterDelay(delay: 1.5)
             }
         }
+    }
+    
+    private func quickSyncCurrentURL(_ url: String) async {
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            _ = await postLink(rawUrl: url, status: "unread", token: token)
+            print("[ReadAction] ✅ Quick sync completed for current URL")
+        } catch {
+            print("[ReadAction] ⚠️ Quick sync failed: \(error)")
+        }
+    }
+    
+    private func notifyMainApp() {
+        // Use Darwin notifications to tell main app to refresh
+        let notificationName = "com.pavels.PSReadThis.newContent"
+        let center = CFNotificationCenterGetDarwinCenter()
+        CFNotificationCenterPostNotification(center, CFNotificationName(notificationName as CFString), nil, nil, true)
+        print("[ReadAction] � Notified main app of new content")
     }
 
     private func setupNetworkMonitoring() {
