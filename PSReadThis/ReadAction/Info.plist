@@ -28,5 +28,9 @@
 	<string></string>
 	<key>CFBundleDisplayName</key>
 	<string>Save for Later</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.15.2</string>
+	<key>CFBundleVersion</key>
+	<string>152</string>
 </dict>
 </plist>

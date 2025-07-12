@@ -9,6 +9,52 @@ import UIKit
 import MobileCoreServices
 import UniformTypeIdentifiers
 import Network
+import Foundation
+
+// MARK: - Remote Operations Log
+struct RemoteOperation: Identifiable, Codable {
+    let id: UUID
+    let timestamp: Date
+    let operation: String
+    let url: String
+    let method: String
+    let statusCode: Int?
+    let success: Bool
+    let details: String
+    
+    var timeString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: timestamp)
+    }
+    
+    init(timestamp: Date, operation: String, url: String, method: String, statusCode: Int?, success: Bool, details: String) {
+        self.id = UUID()
+        self.timestamp = timestamp
+        self.operation = operation
+        self.url = url
+        self.method = method
+        self.statusCode = statusCode
+        self.success = success
+        self.details = details
+    }
+    
+    // For decoding
+    init(id: UUID, timestamp: Date, operation: String, url: String, method: String, statusCode: Int?, success: Bool, details: String) {
+        self.id = id
+        self.timestamp = timestamp
+        self.operation = operation
+        self.url = url
+        self.method = method
+        self.statusCode = statusCode
+        self.success = success
+        self.details = details
+    }
+}
+
+// Constants for remote operations logging
+private let remoteLogKey = "PSReadRemoteOperationsLog"
+private let appGroupSuite = "group.com.pavels.psreadthis"
 
 // Custom label with padding
 class PaddedLabel: UILabel {
@@ -33,7 +79,9 @@ class ActionViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("[ReadAction] 🚀 viewDidLoad")
+        print("[ReadAction] 🚀 EXTENSION STARTED - viewDidLoad called")
+        print("[ReadAction] 🚀 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
+        print("[ReadAction] 🚀 Process name: \(ProcessInfo.processInfo.processName)")
         
         // Minimal UI setup first - show immediately
         view.backgroundColor = UIColor.black.withAlphaComponent(0.7)
@@ -248,7 +296,7 @@ class ActionViewController: UIViewController {
     }
 
     private func saveToQueue(url: String) {
-        print("[ReadAction] 📥 saveToQueue: \(url)")
+        print("[ReadAction] 🚀 SAVE TO QUEUE CALLED for URL: \(url)")
         let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
         var queue = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
         
@@ -271,6 +319,51 @@ class ActionViewController: UIViewController {
         
         defaults.set(queue, forKey: "PSReadQueue")
         print("[ReadAction] 📋 Queue after append: \(queue.count) items")
+        
+        print("[ReadAction] 🚀 ABOUT TO CALL appendRemoteOperation")
+        // Log the queue operation
+        let operation = RemoteOperation(
+            timestamp: Date(),
+            operation: "ReadAction Queue Add",
+            url: url,
+            method: "QUEUE_ADD",
+            statusCode: nil,
+            success: true,
+            details: "Added to queue with status: unread, Source: ReadAction"
+        )
+        appendRemoteOperation(operation)
+        print("[ReadAction] 🚀 FINISHED calling appendRemoteOperation")
+    }
+
+    private func appendRemoteOperation(_ op: RemoteOperation) {
+        print("[ReadAction] 🚀 appendRemoteOperation CALLED")
+        print("[ReadAction] 🚀 Operation: \(op.operation)")
+        print("[ReadAction] 🚀 URL: \(op.url)")
+        print("[ReadAction] 🚀 App Group Suite: \(appGroupSuite)")
+        
+        let defaults = UserDefaults(suiteName: appGroupSuite) ?? .standard
+        print("[ReadAction] 🚀 UserDefaults suite: \(appGroupSuite)")
+        
+        var log: [RemoteOperation] = []
+        if let data = defaults.data(forKey: remoteLogKey),
+           let decoded = try? JSONDecoder().decode([RemoteOperation].self, from: data) {
+            log = decoded
+            print("[ReadAction] 🚀 Loaded existing log with \(log.count) entries")
+        } else {
+            print("[ReadAction] 🚀 No existing log found, creating new one")
+        }
+        
+        log.append(op)
+        print("[ReadAction] 🚀 Log now has \(log.count) entries")
+        
+        if log.count > 50 { log.removeFirst(log.count - 50) }
+        
+        if let data = try? JSONEncoder().encode(log) {
+            defaults.set(data, forKey: remoteLogKey)
+            print("[ReadAction] 🚀 Successfully saved log to UserDefaults")
+        } else {
+            print("[ReadAction] 🚀 ❌ Failed to encode log")
+        }
     }
 
     private func syncQueueToSupabase() async -> [String: Any] {
@@ -293,6 +386,16 @@ class ActionViewController: UIViewController {
             defaults.set(queue, forKey: "PSReadQueue")
             print("[ReadAction] ✅ Sent unread URLs: \(sent)")
             print("[ReadAction] 📦 Remaining unread queue: \(queue.count) items")
+            let op = RemoteOperation(
+                timestamp: Date(),
+                operation: "ReadAction Sync Queue",
+                url: sent.first ?? "multiple",
+                method: "POST/PATCH",
+                statusCode: nil,
+                success: !sent.isEmpty,
+                details: "Sent \(sent.count) URLs, Source: ReadAction"
+            )
+            appendRemoteOperation(op)
             return ["success": !sent.isEmpty, "sent": sent]
         } catch {
             print("[ReadAction] ⚠️ Failed to get valid token or sync: \(error)")
@@ -422,7 +525,13 @@ class ActionViewController: UIViewController {
             if !Task.isCancelled {
                 print("[ReadAction] 🚨 10s absolute timeout - force completing")
                 await MainActor.run {
-                    self.showSavedOffline(domain: domain)
+                    if self.isNetworkAvailable {
+                        // Online but sync took too long - show that it was saved but sync may continue
+                        self.showSavedOffline(domain: domain)
+                        print("[ReadAction] ⚠️ Sync timeout while online - will continue in background")
+                    } else {
+                        self.showSavedOffline(domain: domain)
+                    }
                     self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
                 }
             }
@@ -435,11 +544,12 @@ class ActionViewController: UIViewController {
                 print("[ReadAction] ⏰ 2s timeout - showing immediate feedback")
                 await MainActor.run {
                     if isNetworkAvailable {
-                        self.showSavedOffline(domain: domain) // Show offline even if online but slow
+                        self.showSaving() // Continue showing saving indicator when online but slow
+                        print("[ReadAction] 🌐 Still attempting sync (online but taking time)...")
                     } else {
                         self.showSavedOffline(domain: domain)
+                        self.dismissAfterDelay()
                     }
-                    self.dismissAfterDelay()
                 }
             }
         }

@@ -225,6 +225,11 @@ class PerformanceMonitor {
 
 // Complex content detection functions removed for performance
 
+// RemoteOperation is now defined in RemoteOperation.swift
+
+private let remoteLogKey = "PSReadRemoteOperationsLog"
+private let appGroupSuite = "group.com.pavels.psreadthis"
+
 // MARK: - Legacy Filter Support (keeping for backward compatibility)
 enum LinkFilter: String, CaseIterable {
     case all = "all"
@@ -262,6 +267,13 @@ class LinksViewModel: ObservableObject {
     @Published var lastLazyLoadTrigger: String = "No lazy load attempts yet"
     private let performanceMonitor = PerformanceMonitor()
     
+    // Remote operations log for debugging
+    @Published var remoteOperationsLog: [RemoteOperation] = [] {
+        didSet {
+            saveRemoteOperationsLog()
+        }
+    }
+    
     // v0.12 Optimization: Reduced page size for faster loading
     private let pageSize = 15
     
@@ -279,6 +291,7 @@ class LinksViewModel: ObservableObject {
     init() {
         // Start background token refresh
         startBackgroundTokenRefresh()
+        loadRemoteOperationsLog()
     }
     
     deinit {
@@ -343,12 +356,15 @@ class LinksViewModel: ObservableObject {
         error = nil
         
         do {
-            // v0.12 Optimization: Skip queue sync unless absolutely necessary
+            // v0.12 Optimization: Process both extension and status queues on reset
             var queueSyncTime: TimeInterval? = nil
             if reset {
-                            let queueSyncStart = CFAbsoluteTimeGetCurrent()
-            await syncCriticalQueueOnly()
-            queueSyncTime = CFAbsoluteTimeGetCurrent() - queueSyncStart
+                print("[LinksViewModel] 🔄 Starting queue sync on reset...")
+                let queueSyncStart = CFAbsoluteTimeGetCurrent()
+                await syncExtensionQueue()     // Process URLs from extensions
+                await syncMarkAsReadQueue()    // Process status changes
+                queueSyncTime = CFAbsoluteTimeGetCurrent() - queueSyncStart
+                print("[LinksViewModel] ✅ Queue sync completed in \(String(format: "%.2f", queueSyncTime ?? 0))s")
             }
             
             performanceMonitor.markStep("queue_sync_complete")
@@ -366,10 +382,27 @@ class LinksViewModel: ObservableObject {
             let apiStart = CFAbsoluteTimeGetCurrent()
             let url = buildOptimizedAPIURL(userId: userId, contentFilter: contentFilter)
             
-            let request = buildOptimizedRequest(url: url, anonKey: anonKey, token: token)
+            let request = buildOptimizedRequest(url: url, anonKey: anonKey, token: token, forceRefresh: reset)
             
+            print("[LinksViewModel] 🌐 Making API request to: \(url.absoluteString)")
             let (data, response) = try await URLSession.shared.data(for: request)
             performanceMonitor.markStep("api_complete")
+            
+            // Log the remote operation
+            if let httpResponse = response as? HTTPURLResponse {
+                let operation = RemoteOperation(
+                    timestamp: Date(),
+                    operation: "Fetch Links",
+                    url: url.absoluteString,
+                    method: "GET",
+                    statusCode: httpResponse.statusCode,
+                    success: httpResponse.statusCode == 200,
+                    details: "Filter: \(currentFilter.rawValue), Content: \(contentFilter), Reset: \(reset)"
+                )
+                await MainActor.run {
+                    appendRemoteOperation(operation)
+                }
+            }
             
             let apiTime = CFAbsoluteTimeGetCurrent() - apiStart
             
@@ -494,7 +527,7 @@ class LinksViewModel: ObservableObject {
         return URL(string: urlString)!
     }
     
-    private func buildOptimizedRequest(url: URL, anonKey: String, token: String) -> URLRequest {
+    private func buildOptimizedRequest(url: URL, anonKey: String, token: String, forceRefresh: Bool = false) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -502,9 +535,15 @@ class LinksViewModel: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("return=representation", forHTTPHeaderField: "Prefer")
         
-        // Aggressive timeout and caching
-        request.timeoutInterval = 5.0
-        request.cachePolicy = .returnCacheDataElseLoad
+        // Set cache policy based on whether this is a forced refresh
+        request.timeoutInterval = 10.0
+        if forceRefresh {
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            print("[LinksViewModel] 🔄 Using cache policy: reloadIgnoringCache (forced refresh)")
+        } else {
+            request.cachePolicy = .returnCacheDataElseLoad
+            print("[LinksViewModel] 📦 Using cache policy: returnCacheDataElseLoad (normal load)")
+        }
         
         return request
     }
@@ -861,7 +900,7 @@ class LinksViewModel: ObservableObject {
     }
     
     // Sync status queue with server
-    private func syncMarkAsReadQueue() async {
+    func syncMarkAsReadQueue() async {
         let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
         var statusQueue = defaults.array(forKey: "PSReadStatusQueue") as? [[String: String]] ?? []
         
@@ -894,11 +933,27 @@ class LinksViewModel: ObservableObject {
                 
                 let (_, response) = try await URLSession.shared.data(for: request)
                 
-                if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
-                    successfullyProcessed.append(entry)
-                    print("[LinksViewModel] ✅ Successfully updated \(linkId) to \(newStatus) on server")
-                } else {
-                    print("[LinksViewModel] ❌ Failed to update \(linkId) to \(newStatus) on server")
+                if let http = response as? HTTPURLResponse {
+                    let success = (200...299).contains(http.statusCode)
+                    
+                    // Log the mark as read operation
+                    let operation = RemoteOperation(
+                        timestamp: Date(),
+                        operation: "Mark as Read",
+                        url: linkId,
+                        method: "PATCH",
+                        statusCode: http.statusCode,
+                        success: success,
+                        details: "Status change to: \(newStatus)"
+                    )
+                    appendRemoteOperation(operation)
+                    
+                    if success {
+                        successfullyProcessed.append(entry)
+                        print("[LinksViewModel] ✅ Successfully updated \(linkId) to \(newStatus) on server")
+                    } else {
+                        print("[LinksViewModel] ❌ Failed to update \(linkId) to \(newStatus) on server")
+                    }
                 }
             }
             
@@ -916,13 +971,23 @@ class LinksViewModel: ObservableObject {
     }
     
     // Sync extension queue (PSReadQueue) with server
-    private func syncExtensionQueue() async {
+    func syncExtensionQueue() async {
         let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
         var extensionQueue = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
         
-        guard !extensionQueue.isEmpty else { return }
+        print("[LinksViewModel] 📦 Checking extension queue: \(extensionQueue.count) items")
         
-        print("[LinksViewModel] Syncing extension queue: \(extensionQueue.count) items")
+        guard !extensionQueue.isEmpty else { 
+            print("[LinksViewModel] 📦 Extension queue is empty, skipping sync")
+            return 
+        }
+        
+        print("[LinksViewModel] 📦 Syncing extension queue: \(extensionQueue.count) items")
+        for (index, entry) in extensionQueue.enumerated() {
+            if let url = entry["url"] as? String, let status = entry["status"] as? String {
+                print("[LinksViewModel] 📦 Item \(index + 1): \(url) → \(status)")
+            }
+        }
         
         do {
             let token = try await TokenManager.shared.getValidAccessToken()
@@ -934,11 +999,26 @@ class LinksViewModel: ObservableObject {
                 guard let url = entry["url"] as? String,
                       let status = entry["status"] as? String else { continue }
                 
-                if await postLinkFromQueue(rawUrl: url, status: status, userId: userId, token: token) {
+                let success = await postLinkFromQueue(rawUrl: url, status: status, userId: userId, token: token)
+                if success {
                     successfullyProcessed.append(url)
                     print("[LinksViewModel] ✅ Successfully synced \(url) with status \(status)")
                 } else {
                     print("[LinksViewModel] ❌ Failed to sync \(url)")
+                }
+                
+                // Log the operation
+                let operation = RemoteOperation(
+                    timestamp: Date(),
+                    operation: "Sync Extension Queue",
+                    url: url,
+                    method: "POST/PATCH",
+                    statusCode: nil,
+                    success: success,
+                    details: "Status: \(status), Source: Extension Queue"
+                )
+                await MainActor.run {
+                    appendRemoteOperation(operation)
                 }
             }
             
@@ -1109,6 +1189,8 @@ class LinksViewModel: ObservableObject {
         await fetchLinks(reset: true)
     }
     
+
+    
     // MARK: - Performance Optimization (Removed Complex Filtering)
     // Enhanced filtering methods removed to prevent iPhone freezing
     // Using basic filtering only via existing fetchLinks method
@@ -1171,13 +1253,42 @@ extension LinksViewModel {
             
             let (_, response) = try await URLSession.shared.data(for: request)
             
-            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                print("[LinksViewModel] Failed to update star status: \(http.statusCode)")
-                // Revert on failure
-                await fetchLinks(reset: true)
+            if let http = response as? HTTPURLResponse {
+                let success = (200...299).contains(http.statusCode)
+                
+                // Log the star toggle operation
+                let operation = RemoteOperation(
+                    timestamp: Date(),
+                    operation: "Toggle Star",
+                    url: linkId,
+                    method: "PATCH",
+                    statusCode: http.statusCode,
+                    success: success,
+                    details: "Star status: \(starred ? "starred" : "unstarred")"
+                )
+                appendRemoteOperation(operation)
+                
+                if !success {
+                    print("[LinksViewModel] Failed to update star status: \(http.statusCode)")
+                    // Revert on failure
+                    await fetchLinks(reset: true)
+                }
             }
         } catch {
             print("[LinksViewModel] Error updating star status: \(error)")
+            
+            // Log the failed star toggle operation
+            let operation = RemoteOperation(
+                timestamp: Date(),
+                operation: "Toggle Star",
+                url: linkId,
+                method: "PATCH",
+                statusCode: nil,
+                success: false,
+                details: "Error: \(error.localizedDescription)"
+            )
+            appendRemoteOperation(operation)
+            
             await fetchLinks(reset: true)
         }
     }
@@ -1211,14 +1322,72 @@ extension LinksViewModel {
             
             let (_, response) = try await URLSession.shared.data(for: request)
             
-            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                print("[LinksViewModel] Failed to delete link: \(http.statusCode)")
-                // Revert on failure
-                await fetchLinks(reset: true)
+            if let http = response as? HTTPURLResponse {
+                let success = (200...299).contains(http.statusCode)
+                print("[LinksViewModel] Delete link result: \(http.statusCode)")
+                
+                // Log the delete operation
+                let operation = RemoteOperation(
+                    timestamp: Date(),
+                    operation: "Delete Link",
+                    url: linkId,
+                    method: "DELETE",
+                    statusCode: http.statusCode,
+                    success: success,
+                    details: "Link deletion from main app"
+                )
+                appendRemoteOperation(operation)
+                
+                if !success {
+                    print("[LinksViewModel] Failed to delete link: \(http.statusCode)")
+                    // Revert on failure
+                    await fetchLinks(reset: true)
+                }
             }
         } catch {
             print("[LinksViewModel] Error deleting link: \(error)")
+            
+            // Log the failed delete operation
+            let operation = RemoteOperation(
+                timestamp: Date(),
+                operation: "Delete Link",
+                url: linkId,
+                method: "DELETE",
+                statusCode: nil,
+                success: false,
+                details: "Error: \(error.localizedDescription)"
+            )
+            appendRemoteOperation(operation)
+            
             await fetchLinks(reset: true)
         }
+    }
+}
+
+// MARK: - Remote Operations Log Persistence
+extension LinksViewModel {
+    private func loadRemoteOperationsLog() {
+        let defaults = UserDefaults(suiteName: appGroupSuite) ?? .standard
+        if let data = defaults.data(forKey: remoteLogKey),
+           let log = try? JSONDecoder().decode([RemoteOperation].self, from: data) {
+            self.remoteOperationsLog = log
+        }
+    }
+    private func saveRemoteOperationsLog() {
+        let defaults = UserDefaults(suiteName: appGroupSuite) ?? .standard
+        if let data = try? JSONEncoder().encode(remoteOperationsLog) {
+            defaults.set(data, forKey: remoteLogKey)
+        }
+    }
+    func appendRemoteOperation(_ op: RemoteOperation) {
+        remoteOperationsLog.append(op)
+        if remoteOperationsLog.count > 50 {
+            remoteOperationsLog.removeFirst(remoteOperationsLog.count - 50)
+        }
+        saveRemoteOperationsLog()
+    }
+    func clearRemoteOperationsLog() {
+        remoteOperationsLog.removeAll()
+        saveRemoteOperationsLog()
     }
 } 

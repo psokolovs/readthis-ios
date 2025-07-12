@@ -175,25 +175,16 @@ struct SimpleLinksList: View {
     let contentFilter: String
     
     private var filteredLinks: [Link] {
-        // Always print what filter we're using
-        print("[ContentView] 🚀 FILTERING WITH: '\(contentFilter)' (total links: \(viewModel.links.count))")
-        
-        guard contentFilter != "all" else { 
-            print("[ContentView] 🚀 RETURNING ALL LINKS: \(viewModel.links.count)")
-            return viewModel.links 
+        // Remove or comment out excessive debug prints
+        // print("[ContentView] 🚀 FILTERING WITH: '\(contentFilter)' (total links: \(viewModel.links.count))")
+        guard contentFilter != "all" else {
+            // print("[ContentView] 🚀 RETURNING ALL LINKS: \(viewModel.links.count)")
+            return viewModel.links
         }
-        
         let filtered = viewModel.links.filter { link in
             switch contentFilter {
             case "starred":
-                let isStarred = link.isStarred
-                let title = link.title ?? "nil"
-                // Enhanced debug logging for starred filter
-                print("[ContentView] 🔍 Link: '\(title)' -> isStarred: \(isStarred)")
-                print("[ContentView] 🔍   - hasPrefix('⭐ '): \(title.hasPrefix("⭐ "))")
-                print("[ContentView] 🔍   - hasPrefix('⭐'): \(title.hasPrefix("⭐"))")
-                print("[ContentView] 🔍   - cleanTitle: '\(link.cleanTitle)'")
-                return isStarred
+                return link.isStarred
             case "video":
                 return isVideoLink(link)
             case "audio":
@@ -204,18 +195,7 @@ struct SimpleLinksList: View {
                 return true
             }
         }
-        
-        // Enhanced debug logging for starred filter results
-        if contentFilter == "starred" {
-            print("[ContentView] 🌟 STARRED FILTER RESULTS:")
-            print("[ContentView] 🌟   - Filtered count: \(filtered.count)")
-            print("[ContentView] 🌟   - Total links: \(viewModel.links.count)")
-            print("[ContentView] 🌟   - All titles: \(viewModel.links.map { $0.title ?? "nil" })")
-            let starredTitles = viewModel.links.filter { $0.isStarred }.map { $0.title ?? "nil" }
-            print("[ContentView] 🌟   - Starred titles found: \(starredTitles)")
-        }
-        
-        print("[ContentView] 🚀 FILTER RESULT: \(filtered.count) links")
+        // print("[ContentView] 🚀 FILTER RESULT: \(filtered.count) links")
         return filtered
     }
     
@@ -642,7 +622,7 @@ struct DeveloperModeView: View {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.15.0 (Auto-Starred Links)")
+                        Text("0.15.1 (Auto-Starred Links)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)
@@ -710,6 +690,12 @@ struct DeveloperModeView: View {
                             .font(.caption)
                     }
                     
+                    // Queue Diagnostics
+                    QueueDiagnosticsView(viewModel: viewModel)
+                    
+                    // Remote Operations Log
+                    RemoteOperationsLogView(viewModel: viewModel)
+                    
                     // Lazy Load Debug Info
                     VStack(alignment: .leading, spacing: 8) {
                         Text("🔄 Lazy Load Debug")
@@ -774,6 +760,15 @@ struct DeveloperModeView: View {
                         .frame(maxWidth: .infinity)
                         .background(Color.blue.opacity(0.1))
                         .foregroundColor(.blue)
+                        .clipShape(Capsule())
+                        
+                        Button("📡 Clear Remote Operations Log") {
+                            viewModel.remoteOperationsLog.removeAll()
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.purple.opacity(0.1))
+                        .foregroundColor(.purple)
                         .clipShape(Capsule())
                         
                         Button("⭐ Create Test Starred Link") {
@@ -901,6 +896,421 @@ struct PerformanceDetailsView: View {
         formatter.dateStyle = .none
         formatter.timeStyle = .medium
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Queue Diagnostics View
+struct QueueDiagnosticsView: View {
+    @ObservedObject var viewModel: LinksViewModel
+    @State private var queueContents: [[String: Any]] = []
+    @State private var statusQueue: [[String: String]] = []
+    @State private var lastSyncAttempt: Date?
+    @State private var networkStatus: String = "Unknown"
+    @State private var showingQueueDetails = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header
+            HStack {
+                Text("📦 Queue Diagnostics")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Button("Details") {
+                    showingQueueDetails.toggle()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            
+            // Queue Summary
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Extension Queue:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(queueContents.count) items")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(queueContents.count > 0 ? .orange : .green)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Status Queue:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text("\(statusQueue.count) items")
+                        .font(.title3)
+                        .fontWeight(.bold)
+                        .foregroundColor(statusQueue.count > 0 ? .orange : .green)
+                }
+            }
+            
+            // Network Status
+            HStack {
+                Text("Network:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(networkStatus)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(networkStatus == "Connected" ? .green : .red)
+                
+                Spacer()
+                
+                if let lastSync = lastSyncAttempt {
+                    Text("Last sync: \(timeAgoString(from: lastSync))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("No sync attempts")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Quick Actions
+            HStack(spacing: 8) {
+                Button("🔄 Sync Now") {
+                    Task {
+                        await forceSyncQueues()
+                    }
+                }
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
+                .clipShape(Capsule())
+                
+                Button("🧹 Clear Queues") {
+                    clearAllQueues()
+                }
+                .font(.caption)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.red.opacity(0.1))
+                .foregroundColor(.red)
+                .clipShape(Capsule())
+                
+                Spacer()
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingQueueDetails) {
+            QueueDetailsView(queueContents: queueContents, statusQueue: statusQueue)
+        }
+        .onAppear {
+            refreshQueueStatus()
+        }
+    }
+    
+    private func refreshQueueStatus() {
+        let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
+        
+        // Get extension queue
+        queueContents = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
+        
+        // Get status queue
+        statusQueue = defaults.array(forKey: "PSReadStatusQueue") as? [[String: String]] ?? []
+        
+        // Check network status
+        Task {
+            await checkNetworkStatus()
+        }
+    }
+    
+    private func checkNetworkStatus() async {
+        do {
+            let (_, response) = try await URLSession.shared.data(from: URL(string: "https://www.google.com")!)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                DispatchQueue.main.async {
+                    self.networkStatus = "Connected"
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.networkStatus = "Disconnected"
+                }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.networkStatus = "Disconnected"
+            }
+        }
+    }
+    
+    private func forceSyncQueues() async {
+        lastSyncAttempt = Date()
+        
+        // Force sync both queues
+        await viewModel.syncExtensionQueue()
+        await viewModel.syncMarkAsReadQueue()
+        
+        // Refresh status
+        refreshQueueStatus()
+    }
+    
+    private func clearAllQueues() {
+        let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
+        defaults.removeObject(forKey: "PSReadQueue")
+        defaults.removeObject(forKey: "PSReadStatusQueue")
+        refreshQueueStatus()
+    }
+    
+    private func timeAgoString(from date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            return "\(Int(interval/60))m ago"
+        } else if interval < 86400 {
+            return "\(Int(interval/3600))h ago"
+        } else {
+            return "\(Int(interval/86400))d ago"
+        }
+    }
+}
+
+// MARK: - Queue Details View
+struct QueueDetailsView: View {
+    let queueContents: [[String: Any]]
+    let statusQueue: [[String: String]]
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Extension Queue Details
+                    if !queueContents.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("📥 Extension Queue (\(queueContents.count) items)")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            ForEach(Array(queueContents.enumerated()), id: \.offset) { index, entry in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if let url = entry["url"] as? String {
+                                        Text(URL(string: url)?.host ?? url)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                    }
+                                    
+                                    HStack {
+                                        if let status = entry["status"] as? String {
+                                            Text("Status: \(status)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if let timestamp = entry["timestamp"] as? TimeInterval {
+                                            Text(timeString(from: Date(timeIntervalSince1970: timestamp)))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    
+                    // Status Queue Details
+                    if !statusQueue.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("📊 Status Queue (\(statusQueue.count) items)")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                            
+                            ForEach(Array(statusQueue.enumerated()), id: \.offset) { index, entry in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if let linkId = entry["linkId"] {
+                                        Text("Link ID: \(linkId)")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                    }
+                                    
+                                    if let status = entry["status"] {
+                                        Text("New Status: \(status)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    
+                    if queueContents.isEmpty && statusQueue.isEmpty {
+                        Text("🎉 All queues are empty!")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.green)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle("Queue Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func timeString(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+// MARK: - Remote Operations Log View
+struct RemoteOperationsLogView: View {
+    @ObservedObject var viewModel: LinksViewModel
+    @State private var showingFullLog = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header
+            HStack {
+                Text("📡 Remote Operations Log")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Button("View All") {
+                    showingFullLog.toggle()
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+            }
+            
+            // Recent operations summary
+            if viewModel.remoteOperationsLog.isEmpty {
+                Text("No remote operations yet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 8)
+            } else {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(viewModel.remoteOperationsLog.suffix(3).reversed()) { operation in
+                        HStack {
+                            Text(operation.timeString)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .frame(width: 60, alignment: .leading)
+                            
+                            Text(operation.operation)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            Image(systemName: operation.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(operation.success ? .green : .red)
+                        }
+                    }
+                    
+                    if viewModel.remoteOperationsLog.count > 3 {
+                        Text("... and \(viewModel.remoteOperationsLog.count - 3) more")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.top, 2)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingFullLog) {
+            RemoteOperationsFullLogView(operations: viewModel.remoteOperationsLog)
+        }
+    }
+}
+
+// MARK: - Full Remote Operations Log View
+struct RemoteOperationsFullLogView: View {
+    let operations: [RemoteOperation]
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(operations.reversed()) { operation in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(operation.timeString)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Text(operation.method)
+                                .font(.caption)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.1))
+                                .foregroundColor(.blue)
+                                .clipShape(Capsule())
+                            
+                            if let statusCode = operation.statusCode {
+                                Text("\(statusCode)")
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(operation.success ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                                    .foregroundColor(operation.success ? .green : .red)
+                                    .clipShape(Capsule())
+                            }
+                            
+                            Image(systemName: operation.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(operation.success ? .green : .red)
+                        }
+                        
+                        Text(operation.operation)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Text(operation.url)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                        
+                        Text(operation.details)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("Remote Operations")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -52,6 +52,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CD8CD3E52DF4C2A100853FD5 /* Exceptions for "PSReadThis" folder in "PSReadThis" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CD8CD3E02DF4C2A000853FD5 /* PSReadThis */;
+		};
 		CD8CD3FE2DF4C2D400853FD5 /* Exceptions for "PSReadThisShare" folder in "PSReadThisShare" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -71,6 +78,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CD8CD3E32DF4C2A000853FD5 /* PSReadThis */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CD8CD3E52DF4C2A100853FD5 /* Exceptions for "PSReadThis" folder in "PSReadThis" target */,
+			);
 			path = PSReadThis;
 			sourceTree = "<group>";
 		};
@@ -457,7 +467,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4MUD97LXVQ;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PSReadThis/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -488,7 +499,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4MUD97LXVQ;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PSReadThis/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
