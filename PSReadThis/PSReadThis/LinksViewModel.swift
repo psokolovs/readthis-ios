@@ -292,10 +292,45 @@ class LinksViewModel: ObservableObject {
         // Start background token refresh
         startBackgroundTokenRefresh()
         loadRemoteOperationsLog()
+        
+        // Listen for extension notifications
+        setupExtensionNotifications()
     }
     
     deinit {
         backgroundRefreshTask?.cancel()
+        
+        // Remove notification observer
+        let center = CFNotificationCenterGetDarwinCenter()
+        CFNotificationCenterRemoveObserver(center, Unmanaged.passUnretained(self).toOpaque(), CFNotificationName("com.pavels.PSReadThis.newContent" as CFString), nil)
+    }
+    
+    // MARK: - Extension Communication
+    private func setupExtensionNotifications() {
+        let center = CFNotificationCenterGetDarwinCenter()
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        
+        CFNotificationCenterAddObserver(
+            center,
+            observer,
+            { _, observer, name, _, _ in
+                guard let observer = observer else { return }
+                let viewModel = Unmanaged<LinksViewModel>.fromOpaque(observer).takeUnretainedValue()
+                
+                Task { @MainActor in
+                    print("[LinksViewModel] 📢 Received extension notification - refreshing")
+                    await viewModel.refreshFromExtension()
+                }
+            },
+            CFNotificationName("com.pavels.PSReadThis.newContent" as CFString),
+            nil,
+            .deliverImmediately
+        )
+    }
+    
+    private func refreshFromExtension() async {
+        // Quick refresh when extension adds content
+        await fetchLinks(reset: true)
     }
     
     // MARK: - v0.12 Background Token Refresh
@@ -584,10 +619,54 @@ class LinksViewModel: ObservableObject {
         lastId = newLinks.last?.id
     }
     
-    private func syncCriticalQueueOnly() async {
-        // Only sync critical operations, skip non-essential ones
+    private func syncRecentQueueItems() async {
+        // Only sync recent items to avoid slow startup
         await syncMarkAsReadQueue()
-        // Skip extension queue sync unless necessary
+        await syncRecentExtensionQueue()
+    }
+    
+    // Sync only recent extension queue items (last 5)
+    private func syncRecentExtensionQueue() async {
+        let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
+        var extensionQueue = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
+        
+        // Only sync the 5 most recent items to avoid slow startup
+        let recentItems = Array(extensionQueue.suffix(5))
+        guard !recentItems.isEmpty else { return }
+        
+        print("[LinksViewModel] Syncing recent extension queue: \(recentItems.count) items (out of \(extensionQueue.count) total)")
+        
+        do {
+            let token = try await TokenManager.shared.getValidAccessToken()
+            let userId = extractUserIdFromToken(token) ?? "unknown"
+            var successfullyProcessed: [String] = []
+            
+            // Process each recent entry
+            for entry in recentItems {
+                guard let url = entry["url"] as? String,
+                      let status = entry["status"] as? String else { continue }
+                
+                if await postLinkFromQueue(rawUrl: url, status: status, userId: userId, token: token) {
+                    successfullyProcessed.append(url)
+                    print("[LinksViewModel] ✅ Successfully synced recent \(url)")
+                } else {
+                    print("[LinksViewModel] ❌ Failed to sync recent \(url)")
+                }
+            }
+            
+            // Remove successfully processed items from queue
+            extensionQueue.removeAll { entry in
+                if let url = entry["url"] as? String {
+                    return successfullyProcessed.contains(url)
+                }
+                return false
+            }
+            defaults.set(extensionQueue, forKey: "PSReadQueue")
+            print("[LinksViewModel] Processed \(successfullyProcessed.count) recent items, \(extensionQueue.count) remaining")
+            
+        } catch {
+            print("[LinksViewModel] Failed to sync recent extension queue: \(error)")
+        }
     }
     
     // Performance diagnostics for dev mode
