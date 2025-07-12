@@ -496,7 +496,7 @@ class ActionViewController: UIViewController {
             
             let quickSyncTask = Task {
                 // Only sync the current URL, not the entire queue
-                await quickSyncCurrentURL(url: url)
+                await quickSyncCurrentURL(url)
                 
                 // Notify main app of new content
                 notifyMainApp()
@@ -536,11 +536,11 @@ class ActionViewController: UIViewController {
     }
     
     private func notifyMainApp() {
-        // Use Darwin notifications to tell main app to refresh
-        let notificationName = "com.pavels.PSReadThis.newContent"
-        let center = CFNotificationCenterGetDarwinCenter()
-        CFNotificationCenterPostNotification(center, CFNotificationName(notificationName as CFString), nil, nil, true)
-        print("[ReadAction] � Notified main app of new content")
+        // Use UserDefaults to signal main app to refresh
+        let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
+        defaults.set(Date().timeIntervalSince1970, forKey: "PSReadThisLastUpdate")
+        defaults.synchronize()
+        print("[ReadAction] 📢 Notified main app of new content via UserDefaults")
     }
 
     private func setupNetworkMonitoring() {
