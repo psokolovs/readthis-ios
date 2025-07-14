@@ -14,9 +14,13 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.share-services</string>
 	</dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.pavels.PSReadThis.ArchiveLink</string>
+	<key>CFBundleDisplayName</key>
+	<string>Archive Link</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.15.2</string>
+	<string>0.15.5</string>
 	<key>CFBundleVersion</key>
-	<string>152</string>
+	<string>153</string>
 </dict>
 </plist>

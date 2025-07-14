@@ -25,12 +25,12 @@
 		<string>com.apple.ui-services</string>
 	</dict>
 	<key>CFBundleIdentifier</key>
-	<string></string>
+	<string>com.pavels.PSReadThis.SaveForLater</string>
 	<key>CFBundleDisplayName</key>
 	<string>Save for Later</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.15.2</string>
+	<string>0.15.5</string>
 	<key>CFBundleVersion</key>
-	<string>152</string>
+	<string>153</string>
 </dict>
 </plist>

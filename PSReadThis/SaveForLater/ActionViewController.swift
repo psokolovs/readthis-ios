@@ -79,9 +79,9 @@ class ActionViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("[ReadAction] 🚀 EXTENSION STARTED - viewDidLoad called")
-        print("[ReadAction] 🚀 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
-        print("[ReadAction] 🚀 Process name: \(ProcessInfo.processInfo.processName)")
+        print("[SaveForLater] 🚀 EXTENSION STARTED - viewDidLoad called")
+        print("[SaveForLater] 🚀 Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
+        print("[SaveForLater] 🚀 Process name: \(ProcessInfo.processInfo.processName)")
         
         // Minimal UI setup first - show immediately
         view.backgroundColor = UIColor.black.withAlphaComponent(0.7)
@@ -97,7 +97,7 @@ class ActionViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        print("[ReadAction] 📱 viewDidAppear - UI now visible")
+        print("[SaveForLater] 📱 viewDidAppear - UI now visible")
     }
     
     private func initializeAndProcess() async {
@@ -142,6 +142,7 @@ class ActionViewController: UIViewController {
 
     private func showSaved(domain: String) {
         DispatchQueue.main.async {
+            print("[SaveForLater] 🎯 showSaved called with domain: '\(domain)'")
             self.label.text = "✅ Saved!\nLink from \(domain)"
             self.label.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.9)
             
@@ -174,40 +175,48 @@ class ActionViewController: UIViewController {
     }
 
     private func startSaveProcess() {
-        print("[ReadAction] 🔍 startSaveProcess")
-        if let inputItem = extensionContext?.inputItems.first as? NSExtensionItem,
-           let attachments = inputItem.attachments {
-            print("[ReadAction] 📦 Found input item and attachments")
-            for provider in attachments {
-                if provider.hasItemConformingToTypeIdentifier("public.url") {
-                    print("[ReadAction] 📦 Found public.url provider")
-                    provider.loadItem(forTypeIdentifier: "public.url", options: nil) { [weak self] (urlItem, error) in
-                        guard let self = self else { return }
-                        if let url = urlItem as? URL {
-                            print("[ReadAction] 🔗 Received URL to save: \(url.absoluteString)")
-                            Task { await self.saveAndShowResult(url: url.absoluteString) }
-                        } else {
-                            print("[ReadAction] ⚠️ public.url item was not a URL")
-                            self.tryOtherSources(inputItem: inputItem)
+        print("[SaveForLater] 🕵️‍♂️ startSaveProcess")
+        if let inputItem = extensionContext?.inputItems.first as? NSExtensionItem {
+            print("[SaveForLater] 🕵️‍♂️ inputItem: \(inputItem)")
+            if let attachments = inputItem.attachments {
+                print("[SaveForLater] 🕵️‍♂️ attachments: \(attachments)")
+                for provider in attachments {
+                    print("[SaveForLater] 🕵️‍♂️ provider: \(provider)")
+                    if provider.hasItemConformingToTypeIdentifier("public.url") {
+                        print("[SaveForLater] 🕵️‍♂️ Found public.url provider")
+                        provider.loadItem(forTypeIdentifier: "public.url", options: nil) { [weak self] (urlItem, error) in
+                            guard let self = self else { return }
+                            print("[SaveForLater] 🕵️‍♂️ URL provider callback - urlItem: \(String(describing: urlItem))")
+                            print("[SaveForLater] 🕵️‍♂️ URL provider callback - error: \(String(describing: error))")
+                            if let url = urlItem as? URL {
+                                print("[SaveForLater] 🕵️‍♂️ Received URL to save: \(url.absoluteString)")
+                                Task { await self.saveAndShowResult(url: url.absoluteString) }
+                            } else {
+                                print("[SaveForLater] 🕵️‍♂️ public.url item was not a URL: \(String(describing: urlItem))")
+                                self.tryOtherSources(inputItem: inputItem)
+                            }
                         }
+                        return
                     }
-                    return
                 }
+                print("[SaveForLater] 🕵️‍♂️ No public.url found, trying other sources")
+                self.tryOtherSources(inputItem: inputItem)
+                return
+            } else {
+                print("[SaveForLater] 🕵️‍♂️ No attachments in inputItem")
             }
-            print("[ReadAction] ⚠️ No public.url found, trying other sources")
-            self.tryOtherSources(inputItem: inputItem)
-            return
+        } else {
+            print("[SaveForLater] 🕵️‍♂️ No inputItem or attachments, trying clipboard")
         }
-        print("[ReadAction] ⚠️ No inputItem or attachments, trying clipboard")
         self.tryClipboard()
     }
 
     private func tryOtherSources(inputItem: NSExtensionItem) {
-        print("[ReadAction] 🔍 tryOtherSources")
+        print("[SaveForLater] 🔍 tryOtherSources")
         if let userInfo = inputItem.userInfo {
             for value in userInfo.values {
                 if let urlString = value as? String, let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true {
-                    print("[ReadAction] 🔗 Found URL in userInfo: \(urlString)")
+                    print("[SaveForLater] 🔗 Found URL in userInfo: \(urlString)")
                     Task { await self.saveAndShowResult(url: url.absoluteString) }
                     return
                 }
@@ -216,14 +225,14 @@ class ActionViewController: UIViewController {
         if let attachments = inputItem.attachments {
             for provider in attachments {
                 if provider.hasItemConformingToTypeIdentifier("public.file-url") {
-                    print("[ReadAction] 📦 Found public.file-url provider")
+                    print("[SaveForLater] 📦 Found public.file-url provider")
                     provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { [weak self] (urlItem, error) in
                         guard let self = self else { return }
                         if let fileUrl = urlItem as? URL {
-                            print("[ReadAction] 📄 Got file URL: \(fileUrl)")
+                            print("[SaveForLater] 📄 Got file URL: \(fileUrl)")
                             self.tryClipboard()
                         } else {
-                            print("[ReadAction] ⚠️ public.file-url item was not a URL")
+                            print("[SaveForLater] ⚠️ public.file-url item was not a URL")
                             self.tryClipboard()
                         }
                     }
@@ -231,15 +240,15 @@ class ActionViewController: UIViewController {
                 }
             }
         }
-        print("[ReadAction] ⚠️ No other sources found, trying clipboard")
+        print("[SaveForLater] ⚠️ No other sources found, trying clipboard")
         self.tryClipboard()
     }
 
     private func tryClipboard() {
-        print("[ReadAction] 🔍 tryClipboard")
+        print("[SaveForLater] 🔍 tryClipboard")
         if let clipboardString = UIPasteboard.general.string, !clipboardString.isEmpty {
             if let url = URL(string: clipboardString), url.scheme?.hasPrefix("http") == true {
-                print("[ReadAction] 📋 Found valid URL in clipboard: \(clipboardString)")
+                print("[SaveForLater] 📋 Found valid URL in clipboard: \(clipboardString)")
                 DispatchQueue.main.async {
                     let alert = UIAlertController(
                         title: "Use Clipboard URL?",
@@ -247,18 +256,18 @@ class ActionViewController: UIViewController {
                         preferredStyle: .alert
                     )
                     alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
-                        print("[ReadAction] ❌ User cancelled clipboard URL usage")
+                        print("[SaveForLater] ❌ User cancelled clipboard URL usage")
                         self.showError()
                         self.dismissAfterDelay()
                     })
                     alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
-                        print("[ReadAction] ✅ User confirmed clipboard URL usage")
+                        print("[SaveForLater] ✅ User confirmed clipboard URL usage")
                         Task { await self.saveAndShowResult(url: url.absoluteString) }
                     })
                     self.present(alert, animated: true, completion: nil)
                 }
             } else {
-                print("[ReadAction] ⚠️ Clipboard does not contain a valid URL")
+                print("[SaveForLater] ⚠️ Clipboard does not contain a valid URL")
                 DispatchQueue.main.async {
                     let alert = UIAlertController(
                         title: "Clipboard Invalid",
@@ -273,7 +282,7 @@ class ActionViewController: UIViewController {
                 }
             }
         } else {
-            print("[ReadAction] ⚠️ Clipboard is empty")
+            print("[SaveForLater] ⚠️ Clipboard is empty")
             DispatchQueue.main.async {
                 let alert = UIAlertController(
                     title: "Clipboard Empty",
@@ -296,7 +305,7 @@ class ActionViewController: UIViewController {
     }
 
     private func saveToQueue(url: String) {
-        print("[ReadAction] 🚀 SAVE TO QUEUE CALLED for URL: \(url)")
+        print("[SaveForLater] 🚀 SAVE TO QUEUE CALLED for URL: \(url)")
         let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
         var queue = defaults.array(forKey: "PSReadQueue") as? [[String: Any]] ?? []
         
@@ -313,14 +322,14 @@ class ActionViewController: UIViewController {
             "url": url,
             "status": "unread",  // ReadAction intent: save for later
             "timestamp": Date().timeIntervalSince1970,
-            "source": "ReadAction"
+            "source": "SaveForLater"
         ]
         queue.append(queueEntry)
         
         defaults.set(queue, forKey: "PSReadQueue")
-        print("[ReadAction] 📋 Queue after append: \(queue.count) items")
+        print("[SaveForLater] 📋 Queue after append: \(queue.count) items")
         
-        print("[ReadAction] 🚀 ABOUT TO CALL appendRemoteOperation")
+        print("[SaveForLater] 🚀 ABOUT TO CALL appendRemoteOperation")
         // Log the queue operation
         let operation = RemoteOperation(
             timestamp: Date(),
@@ -329,40 +338,40 @@ class ActionViewController: UIViewController {
             method: "QUEUE_ADD",
             statusCode: nil,
             success: true,
-            details: "Added to queue with status: unread, Source: ReadAction"
+            details: "Added to queue with status: unread, Source: SaveForLater"
         )
         appendRemoteOperation(operation)
-        print("[ReadAction] 🚀 FINISHED calling appendRemoteOperation")
+        print("[SaveForLater] 🚀 FINISHED calling appendRemoteOperation")
     }
 
     private func appendRemoteOperation(_ op: RemoteOperation) {
-        print("[ReadAction] 🚀 appendRemoteOperation CALLED")
-        print("[ReadAction] 🚀 Operation: \(op.operation)")
-        print("[ReadAction] 🚀 URL: \(op.url)")
-        print("[ReadAction] 🚀 App Group Suite: \(appGroupSuite)")
+        print("[SaveForLater] 🚀 appendRemoteOperation CALLED")
+        print("[SaveForLater] 🚀 Operation: \(op.operation)")
+        print("[SaveForLater] 🚀 URL: \(op.url)")
+        print("[SaveForLater] 🚀 App Group Suite: \(appGroupSuite)")
         
         let defaults = UserDefaults(suiteName: appGroupSuite) ?? .standard
-        print("[ReadAction] 🚀 UserDefaults suite: \(appGroupSuite)")
+        print("[SaveForLater] 🚀 UserDefaults suite: \(appGroupSuite)")
         
         var log: [RemoteOperation] = []
         if let data = defaults.data(forKey: remoteLogKey),
            let decoded = try? JSONDecoder().decode([RemoteOperation].self, from: data) {
             log = decoded
-            print("[ReadAction] 🚀 Loaded existing log with \(log.count) entries")
+            print("[SaveForLater] 🚀 Loaded existing log with \(log.count) entries")
         } else {
-            print("[ReadAction] 🚀 No existing log found, creating new one")
+            print("[SaveForLater] 🚀 No existing log found, creating new one")
         }
         
         log.append(op)
-        print("[ReadAction] 🚀 Log now has \(log.count) entries")
+        print("[SaveForLater] 🚀 Log now has \(log.count) entries")
         
         if log.count > 50 { log.removeFirst(log.count - 50) }
         
         if let data = try? JSONEncoder().encode(log) {
             defaults.set(data, forKey: remoteLogKey)
-            print("[ReadAction] 🚀 Successfully saved log to UserDefaults")
+            print("[SaveForLater] 🚀 Successfully saved log to UserDefaults")
         } else {
-            print("[ReadAction] 🚀 ❌ Failed to encode log")
+            print("[SaveForLater] 🚀 ❌ Failed to encode log")
         }
     }
 
@@ -373,7 +382,7 @@ class ActionViewController: UIViewController {
         do {
             // Extract user ID from token
             let userId = extractUserIdFromToken(token) ?? "unknown"
-            print("[ReadAction] 📡 Fast UPSERT: \(rawUrl) → \(status)")
+            print("[SaveForLater] 📡 Fast UPSERT: \(rawUrl) → \(status)")
             
             // Use Supabase UPSERT - single call handles both insert and update
             let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
@@ -397,20 +406,20 @@ class ActionViewController: UIViewController {
         
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
-                print("[ReadAction] 📡 UPSERT result: \(http.statusCode)")
+                print("[SaveForLater] 📡 UPSERT result: \(http.statusCode)")
                 
                 // Handle both success cases and conflict resolution
                 if (200...299).contains(http.statusCode) {
                     return true
                 } else if http.statusCode == 409 {
                     // Conflict - do a simple PATCH update
-                    print("[ReadAction] 📡 Conflict detected, doing quick update")
+                    print("[SaveForLater] 📡 Conflict detected, doing quick update")
                     return await quickUpdateStatus(rawUrl: rawUrl, status: status, userId: userId, token: token)
                 }
                 return false
             }
         } catch {
-            print("[ReadAction] 🌐 Network error: \(error)")
+            print("[SaveForLater] 🌐 Network error: \(error)")
         }
         return false
     }
@@ -437,12 +446,12 @@ class ActionViewController: UIViewController {
         
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
-                print("[ReadAction] 📡 Quick update: \(http.statusCode)")
+                print("[SaveForLater] 📡 Quick update: \(http.statusCode)")
                 return http.statusCode == 204
             }
             return false
         } catch {
-            print("[ReadAction] 🌐 Quick update error: \(error)")
+            print("[SaveForLater] 🌐 Quick update error: \(error)")
             return false
         }
     }
@@ -453,7 +462,7 @@ class ActionViewController: UIViewController {
     private func extractUserIdFromToken(_ token: String) -> String? {
         let parts = token.components(separatedBy: ".")
         guard parts.count == 3 else {
-            print("[ReadAction] Invalid JWT format")
+            print("[SaveForLater] Invalid JWT format")
             return nil
         }
         
@@ -468,22 +477,26 @@ class ActionViewController: UIViewController {
         guard let data = Data(base64Encoded: base64),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let sub = json["sub"] as? String else {
-            print("[ReadAction] Could not extract user ID from token")
+            print("[SaveForLater] Could not extract user ID from token")
             return nil
         }
         
-        print("[ReadAction] Successfully extracted user ID: \(sub)")
+        print("[SaveForLater] Successfully extracted user ID: \(sub)")
         return sub
     }
 
     private func saveAndShowResult(url: String) async {
-        print("[ReadAction] 📥 saveAndShowResult: \(url)")
+        print("[SaveForLater] 📥 saveAndShowResult: \(url)")
         
         // Always save to queue first (offline-first approach)
         saveToQueue(url: url)
         
-        // Extract domain for display
-        let domain = URL(string: url)?.host ?? "this page"
+        // Extract domain for display with better debugging
+        let urlObject = URL(string: url)
+        let domain = urlObject?.host ?? "this page"
+        print("[SaveForLater] 🔍 URL parsing - Original: '\(url)'")
+        print("[SaveForLater] 🔍 URL parsing - URL object: \(urlObject?.absoluteString ?? "nil")")
+        print("[SaveForLater] 🔍 URL parsing - Host: '\(domain)'")
         
         // IMMEDIATE SUCCESS FEEDBACK - Don't wait for sync
         DispatchQueue.main.async {
@@ -492,7 +505,7 @@ class ActionViewController: UIViewController {
         
         // Quick background sync attempt (max 3 seconds)
         if isNetworkAvailable {
-            print("[ReadAction] 🌐 Online: Quick sync attempt")
+            print("[SaveForLater] 🌐 Online: Quick sync attempt")
             
             let quickSyncTask = Task {
                 // Only sync the current URL, not the entire queue
@@ -517,7 +530,7 @@ class ActionViewController: UIViewController {
             }
         } else {
             // Offline - dismiss quickly
-            print("[ReadAction] 📱 Offline: Saved to queue")
+            print("[SaveForLater] 📱 Offline: Saved to queue")
             DispatchQueue.main.async {
                 self.showSavedOffline(domain: domain)
                 self.dismissAfterDelay(delay: 1.5)
@@ -529,9 +542,9 @@ class ActionViewController: UIViewController {
         do {
             let token = try await TokenManager.shared.getValidAccessToken()
             _ = await postLink(rawUrl: url, status: "unread", token: token)
-            print("[ReadAction] ✅ Quick sync completed for current URL")
+            print("[SaveForLater] ✅ Quick sync completed for current URL")
         } catch {
-            print("[ReadAction] ⚠️ Quick sync failed: \(error)")
+            print("[SaveForLater] ⚠️ Quick sync failed: \(error)")
         }
     }
     
@@ -540,13 +553,13 @@ class ActionViewController: UIViewController {
         let defaults = UserDefaults(suiteName: "group.com.pavels.psreadthis") ?? .standard
         defaults.set(Date().timeIntervalSince1970, forKey: "PSReadThisLastUpdate")
         defaults.synchronize()
-        print("[ReadAction] 📢 Notified main app of new content via UserDefaults")
+        print("[SaveForLater] 📢 Notified main app of new content via UserDefaults")
     }
 
     private func setupNetworkMonitoring() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             self?.isNetworkAvailable = path.status == .satisfied
-            print("[ReadAction] 🌐 Network status: \(path.status == .satisfied ? "Connected" : "Disconnected")")
+            print("[SaveForLater] 🌐 Network status: \(path.status == .satisfied ? "Connected" : "Disconnected")")
         }
         networkMonitor.start(queue: networkQueue)
     }
@@ -559,7 +572,7 @@ class ActionViewController: UIViewController {
     
     /// Required method to handle "Done" button taps from storyboard
     @IBAction func done() {
-        print("[ReadAction] 🏁 Done button tapped - completing extension")
+        print("[SaveForLater] 🏁 Done button tapped - completing extension")
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
 }

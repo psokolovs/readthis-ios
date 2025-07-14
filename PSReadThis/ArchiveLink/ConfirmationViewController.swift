@@ -580,7 +580,7 @@ class ConfirmationViewController: UIViewController {
             "url": url,
             "status": "read",  // PSReadThisShare intent: already read
             "timestamp": Date().timeIntervalSince1970,
-            "source": "PSReadThisShare"
+            "source": "ArchiveLink"
         ]
         queue.append(queueEntry)
         
@@ -598,7 +598,7 @@ class ConfirmationViewController: UIViewController {
             method: "QUEUE_ADD",
             statusCode: nil,
             success: true,
-            details: "Added to queue with status: read, Source: PSReadThisShare"
+            details: "Added to queue with status: read, Source: ArchiveLink"
         )
         appendRemoteOperation(operation)
         
@@ -630,7 +630,7 @@ class ConfirmationViewController: UIViewController {
                 method: "POST/PATCH",
                 statusCode: nil,
                 success: !sent.isEmpty,
-                details: "Sent \(sent.count) URLs, Source: PSReadThisShare"
+                details: "Sent \(sent.count) URLs, Source: ArchiveLink"
             )
             appendRemoteOperation(op)
             return ["success": !sent.isEmpty, "sent": sent]

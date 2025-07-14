@@ -622,7 +622,7 @@ struct DeveloperModeView: View {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.15.2 (Enhanced Debug Logging)")
+                        Text("0.15.5 (Enhanced Debug Logging)")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)

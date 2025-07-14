@@ -20,13 +20,13 @@ final class TokenManager {
     // MARK: – Public API
 
     func getAnonKey() async throws -> String {
-        print("[ReadAction] 🔑 Using hardcoded correct anon key to match main app")
+        print("[SaveForLater] 🔑 Using hardcoded correct anon key to match main app")
         
         // Return the correct anon key directly - no remote fetching
         cachedAnonKey = correctAnonKey
         UserDefaults.standard.set(correctAnonKey, forKey: "PSReadThisAnonKey")
         
-        print("[ReadAction] ✅ Using correct anon key: \(correctAnonKey.prefix(50))...")
+        print("[SaveForLater] ✅ Using correct anon key: \(correctAnonKey.prefix(50))...")
         return correctAnonKey
     }
 

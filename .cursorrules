@@ -1,0 +1,203 @@
+# PSReadThis iOS App - Cursor Rules
+
+## Version Management
+**IMPORTANT**: Every time you make changes to the app, you MUST increment the version number in the project file.
+
+Current version locations to update:
+- `MARKETING_VERSION` in project.pbxproj (lines ~400, ~420, ~570, ~590, ~610, ~630)
+- `CURRENT_PROJECT_VERSION` in project.pbxproj (build number)
+
+Version increment rules:
+- For bug fixes: increment patch version (0.15.4 -> 0.15.5, etc.)
+- For new features: increment minor version (0.15.4 -> 0.16.0, etc.)
+- For breaking changes: increment major version (0.15.4 -> 1.0.0, etc.)
+
+Example version update:
+```swift
+// Before
+MARKETING_VERSION = 0.15.4;
+CURRENT_PROJECT_VERSION = 1;
+
+// After (for a new feature)
+MARKETING_VERSION = 0.16.0;
+CURRENT_PROJECT_VERSION = 2;
+```
+
+**ALWAYS run the version bump script after making changes:**
+```bash
+# For bug fixes
+./version_bump.sh patch
+
+# For new features  
+./version_bump.sh minor
+
+# For breaking changes
+./version_bump.sh major
+
+# For build number only
+./version_bump.sh build
+
+# To check current version
+./version_bump.sh show
+```
+
+## Build Configuration
+When building this iOS project, always use iPhone 16 or newer simulators since this project targets iOS 18.5.
+
+Preferred build command:
+```bash
+xcodebuild -project PSReadThis.xcodeproj -scheme PSReadThis -destination 'platform=iOS Simulator,name=iPhone 16' clean build
+```
+
+Alternative simulators that support iOS 18.5:
+- iPhone 16
+- iPhone 16 Plus
+- iPhone 16 Pro
+- iPhone 16 Pro Max
+- iPhone 17
+- iPhone 17 Plus
+- iPhone 17 Pro
+- iPhone 17 Pro Max
+
+## Project Structure
+- Main app: `PSReadThis/` - SwiftUI iOS app
+- Extensions: 
+  - `SaveForLater/` - Share extension for saving links
+  - `ArchiveLink/` - Share extension for marking as read
+- Deployment Target: iOS 18.5
+- Development Team: 4MUD97LXVQ
+- Bundle IDs:
+  - Main app: com.pavels.PSReadThis
+  - SaveForLater: com.pavels.PSReadThis.SaveForLater
+  - ArchiveLink: com.pavels.PSReadThis.ArchiveLink
+
+## Code Style & Patterns
+- Use SwiftUI for all UI components
+- Follow MVVM architecture pattern
+- Use `@StateObject` for view models
+- Use `@Published` for reactive properties
+- Prefer async/await over completion handlers
+- Use Swift concurrency (Task, @MainActor) for background work
+
+## File Organization
+- Keep view models in separate files from views
+- Use descriptive file names: `LinksViewModel.swift`, `ContentView.swift`
+- Group related functionality in extensions
+- Place shared utilities in separate files
+
+## Common Patterns
+- Always handle errors gracefully with user-friendly messages
+- Use proper SwiftUI lifecycle methods (@AppStorage, @SceneStorage)
+- Implement proper state management for data persistence
+- Use SwiftUI previews for rapid UI development
+
+## Extension Development Guidelines
+- Both extensions share the same codebase as the main app
+- Test extensions thoroughly with real URLs
+- Ensure proper entitlements for share extension capabilities
+- Handle extension lifecycle properly (limited runtime)
+
+## Testing Guidelines
+- Write unit tests for view models
+- Test data persistence and network operations
+- Use SwiftUI previews for UI testing
+- Mock dependencies for isolated testing
+- Test both main app and extensions
+
+## Debugging Tips
+- Use `print()` statements for quick debugging
+- Leverage Xcode's built-in debugging tools
+- Check console logs for extension debugging
+- Use breakpoints strategically
+- For extension debugging, check the main app's console
+
+## Common Issues & Solutions
+- If build fails with simulator issues, try iPhone 16 or newer
+- For extension debugging, check the main app's console
+- Use proper entitlements for share extensions
+- Ensure proper code signing for all targets
+- Version conflicts: always increment version numbers
+
+## Performance Considerations
+- Lazy load data when possible
+- Use proper image caching
+- Minimize main thread blocking operations
+- Implement proper memory management
+- Optimize extension startup time
+
+## Security Best Practices
+- Never hardcode sensitive data
+- Use proper keychain access for tokens
+- Validate all user inputs
+- Implement proper error handling without exposing internals
+
+## Git Workflow
+- Use conventional commit messages: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`
+- Create feature branches for new functionality
+- Keep commits atomic and focused
+- Write descriptive commit messages
+- **Always include version bump in commit message**
+
+## Code Review Guidelines
+- Check for proper error handling
+- Ensure UI follows iOS design guidelines
+- Verify proper state management
+- Test on both iPhone and iPad if applicable
+- Verify version numbers are updated
+
+## Documentation Standards
+- Document complex business logic
+- Use clear variable and function names
+- Add comments for non-obvious code
+- Keep README.md updated with setup instructions
+- Document version changes in commit messages
+
+## Useful Commands
+```bash
+# Build for specific simulator
+xcodebuild -project PSReadThis.xcodeproj -scheme PSReadThis -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Clean build
+xcodebuild -project PSReadThis.xcodeproj -scheme PSReadThis clean
+
+# List available simulators
+xcrun simctl list devices available
+
+# Test share extensions
+xcodebuild -project PSReadThis.xcodeproj -scheme SaveForLater -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project PSReadThis.xcodeproj -scheme ArchiveLink -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Check current version
+grep "MARKETING_VERSION\|CURRENT_PROJECT_VERSION" PSReadThis.xcodeproj/project.pbxproj
+
+# Run version bump script
+./version_bump.sh patch  # or minor, major, build
+```
+
+## Common Tasks
+- When adding new features, consider both main app and extensions
+- Always test share extensions with real URLs
+- Verify proper entitlements for new capabilities
+- Check app store guidelines for new features
+- **Update version numbers for any code changes**
+
+## AI Assistant Guidelines
+When asking for help:
+- Provide specific error messages
+- Include relevant code snippets
+- Mention iOS version and device type
+- Describe expected vs actual behavior
+
+Code generation preferences:
+- Generate SwiftUI code with proper state management
+- Include error handling in all network calls
+- Use proper Swift concurrency patterns
+- Add SwiftUI previews for new views
+- Follow iOS accessibility guidelines
+
+## Refactoring Guidelines
+- Maintain backward compatibility
+- Preserve existing functionality
+- Update tests when refactoring
+- Document breaking changes
+- **Always update version numbers** 

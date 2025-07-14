@@ -11,7 +11,7 @@
         <!--Confirmation View Controller-->
         <scene sceneID="433-wh-zks">
             <objects>
-                <viewController storyboardIdentifier="ConfirmationViewController" id="g1q-bE-smv" customClass="ConfirmationViewController" customModule="PSReadThisShare" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="ConfirmationViewController" id="g1q-bE-smv" customClass="ConfirmationViewController" customModule="ArchiveLink" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="bqy-D5-2gU">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
