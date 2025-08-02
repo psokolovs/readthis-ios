@@ -375,13 +375,12 @@ class ActionViewController: UIViewController {
             let userId = extractUserIdFromToken(token) ?? "unknown"
             print("[ReadAction] 📡 Fast UPSERT: \(rawUrl) → \(status)")
             
-            // Use Supabase UPSERT - single call handles both insert and update
+            // Use proper UPSERT with ON CONFLICT handling
             let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-            request.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
             let anonKey = try await TokenManager.shared.getAnonKey()
             request.setValue(anonKey, forHTTPHeaderField: "apikey")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -390,7 +389,7 @@ class ActionViewController: UIViewController {
             let body = [
                 "raw_url": rawUrl, 
                 "list": "read", 
-                "status": status,  // Use status from queue metadata
+                "status": status,
                 "user_id": userId
             ]
             request.httpBody = try JSONEncoder().encode(body)
@@ -403,9 +402,9 @@ class ActionViewController: UIViewController {
                 if (200...299).contains(http.statusCode) {
                     return true
                 } else if http.statusCode == 409 {
-                    // Conflict - do a simple PATCH update
-                    print("[ReadAction] 📡 Conflict detected, doing quick update")
-                    return await quickUpdateStatus(rawUrl: rawUrl, status: status, userId: userId, token: token)
+                    // Conflict - update existing link by ID
+                    print("[ReadAction] 📡 Conflict detected, updating existing link")
+                    return await updateExistingLinkByUrl(rawUrl: rawUrl, status: status, userId: userId, token: token, anonKey: anonKey)
                 }
                 return false
             }
@@ -415,34 +414,49 @@ class ActionViewController: UIViewController {
         return false
     }
     
-    private func quickUpdateStatus(rawUrl: String, status: String, userId: String, token: String) async -> Bool {
+    // Update existing link by URL (using ID lookup)
+    private func updateExistingLinkByUrl(rawUrl: String, status: String, userId: String, token: String, anonKey: String) async -> Bool {
         do {
-            guard let encodedUserId = userId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                  let encodedUrl = rawUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-                return false
+            // First, find the existing link by URL
+            let searchEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(userId)&raw_url=eq.\(rawUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? rawUrl)&select=id")!
+            var searchRequest = URLRequest(url: searchEndpoint)
+            searchRequest.httpMethod = "GET"
+            searchRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
+            searchRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            let (searchData, searchResponse) = try await URLSession.shared.data(for: searchRequest)
+            
+            if let http = searchResponse as? HTTPURLResponse, http.statusCode == 200 {
+                if let searchResult = try? JSONSerialization.jsonObject(with: searchData) as? [[String: Any]],
+                   let firstResult = searchResult.first,
+                   let linkId = firstResult["id"] as? String {
+                    
+                    // Now update by ID
+                    let updateEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(linkId)")!
+                    var updateRequest = URLRequest(url: updateEndpoint)
+                    updateRequest.httpMethod = "PATCH"
+                    updateRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    updateRequest.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+                    updateRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
+                    updateRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    updateRequest.timeoutInterval = 5.0
+                    
+                    let body = ["status": status]
+                    updateRequest.httpBody = try JSONEncoder().encode(body)
+                    
+                    let (_, updateResponse) = try await URLSession.shared.data(for: updateRequest)
+                    if let updateHttp = updateResponse as? HTTPURLResponse {
+                        print("[ReadAction] 📡 Update by ID result: \(updateHttp.statusCode)")
+                        return updateHttp.statusCode == 204
+                    }
+                }
             }
             
-            let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(encodedUserId)&raw_url=eq.\(encodedUrl)")!
-            var request = URLRequest(url: endpoint)
-            request.httpMethod = "PATCH"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-            let anonKey = try await TokenManager.shared.getAnonKey()
-            request.setValue(anonKey, forHTTPHeaderField: "apikey")
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.timeoutInterval = 5.0
-            
-            let body = ["status": status]
-            request.httpBody = try JSONEncoder().encode(body)
-        
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse {
-                print("[ReadAction] 📡 Quick update: \(http.statusCode)")
-                return http.statusCode == 204
-            }
+            print("[ReadAction] ❌ Failed to find existing link for update")
             return false
+            
         } catch {
-            print("[ReadAction] 🌐 Quick update error: \(error)")
+            print("[ReadAction] 🌐 Update by URL error: \(error)")
             return false
         }
     }
