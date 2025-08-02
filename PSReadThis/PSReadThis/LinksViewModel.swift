@@ -1152,7 +1152,11 @@ class LinksViewModel: ObservableObject {
     private func updateExistingLinkByUrl(rawUrl: String, status: String, userId: String, token: String, anonKey: String) async -> Bool {
         do {
             // First, find the existing link by URL
-            let searchEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(userId)&raw_url=eq.\(rawUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? rawUrl)&select=id")!
+            // Use a different approach: search by user_id only and filter in code
+            let searchEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(userId)&select=id,raw_url")!
+            
+            print("[LinksViewModel] 🔍 Searching for existing link: \(searchEndpoint)")
+            
             var searchRequest = URLRequest(url: searchEndpoint)
             searchRequest.httpMethod = "GET"
             searchRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
@@ -1160,30 +1164,71 @@ class LinksViewModel: ObservableObject {
             
             let (searchData, searchResponse) = try await URLSession.shared.data(for: searchRequest)
             
-            if let http = searchResponse as? HTTPURLResponse, http.statusCode == 200 {
-                if let searchResult = try? JSONSerialization.jsonObject(with: searchData) as? [[String: Any]],
-                   let firstResult = searchResult.first,
-                   let linkId = firstResult["id"] as? String {
-                    
-                    // Now update by ID
-                    let updateEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(linkId)")!
-                    var updateRequest = URLRequest(url: updateEndpoint)
-                    updateRequest.httpMethod = "PATCH"
-                    updateRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    updateRequest.setValue("return=minimal", forHTTPHeaderField: "Prefer")
-                    updateRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
-                    updateRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    updateRequest.timeoutInterval = 5.0
-                    
-                    let body = ["status": status]
-                    updateRequest.httpBody = try JSONEncoder().encode(body)
-                    
-                    let (_, updateResponse) = try await URLSession.shared.data(for: updateRequest)
-                    if let updateHttp = updateResponse as? HTTPURLResponse {
-                        print("[LinksViewModel] 📡 Update by ID result: \(updateHttp.statusCode)")
-                        return updateHttp.statusCode == 204
+            if let http = searchResponse as? HTTPURLResponse {
+                print("[LinksViewModel] 🔍 Search response: \(http.statusCode)")
+                let responseBody = String(data: searchData, encoding: .utf8) ?? "no body"
+                print("[LinksViewModel] 🔍 Search response body: \(responseBody)")
+                
+                if http.statusCode == 200 {
+                    if let searchResult = try? JSONSerialization.jsonObject(with: searchData) as? [[String: Any]] {
+                        print("[LinksViewModel] 🔍 Found \(searchResult.count) total results, filtering for exact URL match")
+                        
+                        // Find the exact URL match in the results
+                        let matchingResult = searchResult.first { result in
+                            guard let resultUrl = result["raw_url"] as? String else { return false }
+                            return resultUrl == rawUrl
+                        }
+                        
+                        if let matchingResult = matchingResult,
+                           let linkId = matchingResult["id"] as? String {
+                            
+                            print("[LinksViewModel] 🔍 Found exact URL match with ID: \(linkId)")
+                            
+                            // Now update by ID
+                            let updateEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?id=eq.\(linkId)")!
+                            var updateRequest = URLRequest(url: updateEndpoint)
+                            updateRequest.httpMethod = "PATCH"
+                            updateRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                            updateRequest.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+                            updateRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
+                            updateRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                            updateRequest.timeoutInterval = 5.0
+                            
+                            let body = ["status": status]
+                            updateRequest.httpBody = try JSONEncoder().encode(body)
+                            
+                            let (_, updateResponse) = try await URLSession.shared.data(for: updateRequest)
+                            if let updateHttp = updateResponse as? HTTPURLResponse {
+                                print("[LinksViewModel] 📡 Update by ID result: \(updateHttp.statusCode)")
+                                return updateHttp.statusCode == 204
+                            }
+                        } else {
+                            print("[LinksViewModel] ❌ No link ID found in search results")
+                        }
+                    } else {
+                        print("[LinksViewModel] ❌ Failed to parse search results")
                     }
+                } else {
+                    print("[LinksViewModel] ❌ Search failed with status: \(http.statusCode)")
                 }
+            }
+            
+            // Let's try a broader search to see what's in the database
+            print("[LinksViewModel] 🔍 Trying broader search to debug...")
+            let debugEndpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(userId)&select=raw_url&limit=5")!
+            var debugRequest = URLRequest(url: debugEndpoint)
+            debugRequest.httpMethod = "GET"
+            debugRequest.setValue(anonKey, forHTTPHeaderField: "apikey")
+            debugRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            do {
+                let (debugData, debugResponse) = try await URLSession.shared.data(for: debugRequest)
+                if let debugHttp = debugResponse as? HTTPURLResponse, debugHttp.statusCode == 200 {
+                    let debugBody = String(data: debugData, encoding: .utf8) ?? "no body"
+                    print("[LinksViewModel] 🔍 Debug - existing URLs in DB: \(debugBody)")
+                }
+            } catch {
+                print("[LinksViewModel] 🔍 Debug search failed: \(error)")
             }
             
             print("[LinksViewModel] ❌ Failed to find existing link for update")
