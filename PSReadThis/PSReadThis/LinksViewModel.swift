@@ -1176,7 +1176,30 @@ class LinksViewModel: ObservableObject {
                         // Find the exact URL match in the results
                         let matchingResult = searchResult.first { result in
                             guard let resultUrl = result["raw_url"] as? String else { return false }
-                            return resultUrl == rawUrl
+                            
+                            // Try exact match first
+                            if resultUrl == rawUrl {
+                                print("[LinksViewModel] 🔍 Found exact match: \(resultUrl)")
+                                return true
+                            }
+                            
+                            // Try URL-decoded comparison for double-encoded URLs
+                            if let decodedResultUrl = resultUrl.removingPercentEncoding,
+                               let decodedRawUrl = rawUrl.removingPercentEncoding,
+                               decodedResultUrl == decodedRawUrl {
+                                print("[LinksViewModel] 🔍 Found decoded match: \(decodedResultUrl)")
+                                return true
+                            }
+                            
+                            // Try single-encoded comparison
+                            if let encodedResultUrl = resultUrl.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                               encodedResultUrl == rawUrl {
+                                print("[LinksViewModel] 🔍 Found encoded match: \(encodedResultUrl)")
+                                return true
+                            }
+                            
+                            print("[LinksViewModel] 🔍 No match: queue='\(rawUrl)' vs db='\(resultUrl)'")
+                            return false
                         }
                         
                         if let matchingResult = matchingResult,
