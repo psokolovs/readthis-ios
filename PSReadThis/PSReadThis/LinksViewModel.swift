@@ -1110,7 +1110,8 @@ class LinksViewModel: ObservableObject {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+            // Enable UPSERT behavior on duplicates to avoid 409 conflicts
+            request.setValue("return=minimal, resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
             guard let anonKey = await PSReadThisConfig.shared.getAnonKey() else {
                 print("[LinksViewModel] ❌ Failed to get anon key for queue sync")
                 return false
@@ -1135,8 +1136,13 @@ class LinksViewModel: ObservableObject {
                 if (200...299).contains(http.statusCode) {
                     return true
                 } else if http.statusCode == 409 {
-                    // Conflict - the URL already exists, update it by ID
-                    print("[LinksViewModel] 📡 Conflict detected, updating existing link")
+                    // Conflict - try a direct PATCH by user_id + raw_url first (fast path)
+                    print("[LinksViewModel] 📡 Conflict detected, attempting quick PATCH by raw_url")
+                    if await quickUpdateStatusByRawUrl(rawUrl: rawUrl, status: status, userId: userId, token: token, anonKey: anonKey) {
+                        return true
+                    }
+                    // Fallback: broader search and update by ID
+                    print("[LinksViewModel] 📡 Quick PATCH failed, falling back to ID lookup")
                     return await updateExistingLinkByUrl(rawUrl: rawUrl, status: status, userId: userId, token: token, anonKey: anonKey)
                 }
                 return false
@@ -1146,6 +1152,40 @@ class LinksViewModel: ObservableObject {
             print("[LinksViewModel] 🌐 Queue sync network error: \(error)")
             return false
         }
+    }
+
+    // Fast conflict resolution: update by user_id + exact raw_url match
+    private func quickUpdateStatusByRawUrl(rawUrl: String, status: String, userId: String, token: String, anonKey: String) async -> Bool {
+        // Properly percent-encode raw_url value for PostgREST eq. filter
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&=?#,+/")
+        let encodedRawUrl = rawUrl.addingPercentEncoding(withAllowedCharacters: allowed) ?? rawUrl
+
+        guard let endpoint = URL(string: "https://ijdtwrsqgbwfgftckywm.supabase.co/rest/v1/links?user_id=eq.\(userId)&raw_url=eq.\(encodedRawUrl)") else {
+            return false
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.timeoutInterval = 5.0
+
+        let body = ["status": status]
+        request.httpBody = try? JSONEncoder().encode(body)
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                print("[LinksViewModel] 📡 Quick PATCH by raw_url result: \(http.statusCode)")
+                return http.statusCode == 204 || (200...299).contains(http.statusCode)
+            }
+        } catch {
+            print("[LinksViewModel] 🌐 Quick PATCH error: \(error)")
+        }
+        return false
     }
     
     // Update existing link by URL (using ID lookup)
