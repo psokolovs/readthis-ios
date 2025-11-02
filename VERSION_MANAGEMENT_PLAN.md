@@ -22,10 +22,13 @@ Each contains:
 - **CFBundleShortVersionString**: Marketing version (maps to MARKETING_VERSION)
 - **CFBundleVersion**: Build number (maps to CURRENT_PROJECT_VERSION)
 
-### 3. Runtime Display
-- `PSReadThis/PSReadThis/ContentView.swift` (lines 626-627)
-  - Reads version dynamically from bundle at runtime
-  - No manual updates needed
+### 3. Runtime Display (User-Visible UI)
+- `PSReadThis/PSReadThis/ContentView.swift` - DeveloperModeView (lines 621-633)
+  - **Location**: Developer Options / Developer Mode screen (accessible when `isDevMode = true`)
+  - **Display**: Shows "Version: {shortVersion} ({buildNumber})"
+  - **Implementation**: Reads dynamically from `Bundle.main.infoDictionary` at runtime
+  - **Status**: ✅ Fully covered - no manual updates needed
+  - When the version bump script updates Info.plist files, this UI automatically reflects the new version on next app launch
 
 ## Current State (Detected Issues)
 

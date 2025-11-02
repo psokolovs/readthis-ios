@@ -18,11 +18,14 @@ Files:
 - `PSReadThis/PSReadThisShare/Info.plist` (GENERATE_INFOPLIST_FILE = YES - auto-generates, but we manage this too)
 - `PSReadThis/ReadAction/Info.plist` (GENERATE_INFOPLIST_FILE = YES - auto-generates, but we manage this too)
 
-### 3. Display Location
-- `PSReadThis/PSReadThis/ContentView.swift` (line 626-627)
-  - Reads from Bundle.main.infoDictionary at runtime
-  - Uses: CFBundleShortVersionString and CFBundleVersion
-  - This is dynamically loaded, so no manual updates needed
+### 3. Runtime Display Locations (User-Visible)
+- `PSReadThis/PSReadThis/ContentView.swift` - DeveloperModeView (lines 621-633)
+  - Location: Developer Options / Developer Mode screen
+  - Reads from `Bundle.main.infoDictionary` at runtime
+  - Uses: `CFBundleShortVersionString` and `CFBundleVersion`
+  - Display format: "Version: {shortVersion} ({buildNumber})"
+  - **Status**: ✅ Fully covered - dynamically reads from Info.plist at runtime
+  - **No manual updates needed** - automatically reflects Info.plist values after script updates
 
 ## Version Synchronization Issues
 
@@ -51,8 +54,9 @@ The script will:
 2. Update CURRENT_PROJECT_VERSION in project.pbxproj (all 6 occurrences)  
 3. Update CFBundleShortVersionString in all 3 Info.plist files
 4. Update CFBundleVersion in all 3 Info.plist files
-5. Support: patch, minor, major, and build-only increments
+5. Support: patch, minor, major, build-only increments, and sync command
 6. Show current version with `show` command
+7. **UI Display**: The Developer Options screen automatically reads from Info.plist at runtime, so UI updates happen automatically on next app launch/rebuild
 
 ## Version Format
 
