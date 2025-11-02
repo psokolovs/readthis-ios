@@ -149,13 +149,13 @@ struct ContentView: View {
                     Text("Invalid URL")
                 }
             }
-            .onChange(of: selectedURL) { url in
-                if url != nil {
+            .onChange(of: selectedURL) { _, newValue in
+                if newValue != nil {
                     showingSafari = true
                 }
             }
-            .onChange(of: showingSafari) { isShowing in
-                if !isShowing {
+            .onChange(of: showingSafari) { _, newValue in
+                if !newValue {
                     // Reset selectedURL when Safari is dismissed to allow re-tapping the same link
                     selectedURL = nil
                 }
@@ -617,12 +617,14 @@ struct DeveloperModeView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
                     
-                    // Version Label
+                    // Version Label (dynamic from Info.plist)
                     HStack {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.15.2 (Enhanced Debug Logging)")
+                        let shortVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+                        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+                        Text(shortVersion.isEmpty ? "Unknown" : "\(shortVersion) (\(buildNumber))")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)
