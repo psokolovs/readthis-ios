@@ -162,7 +162,8 @@ struct ContentView: View {
             }
         }
         .task {
-            // Simple initial load
+            // Defer non-critical init to after first frame to avoid cold-launch stalls
+            await viewModel.initializeAfterLaunch()
             await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
         }
     }

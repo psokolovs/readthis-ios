@@ -289,12 +289,8 @@ class LinksViewModel: ObservableObject {
     private var backgroundRefreshTask: Task<Void, Never>?
     
     init() {
-        // Start background token refresh
+        // Start background token refresh; defer other non-critical work
         startBackgroundTokenRefresh()
-        loadRemoteOperationsLog()
-        
-        // Listen for extension notifications
-        setupExtensionNotifications()
     }
     
     deinit {
@@ -309,6 +305,16 @@ class LinksViewModel: ObservableObject {
         // Darwin notifications removed for build compatibility
         // Extensions will use UserDefaults-based communication instead
         print("[LinksViewModel] 📢 Extension notifications set up via UserDefaults polling")
+    }
+
+    // Defer non-critical initialization until after first UI frame
+    func initializeAfterLaunch() async {
+        // Run lightweight setup on the main actor
+        await MainActor.run {
+            self.setupExtensionNotifications()
+        }
+        // Load logs from app group outside of init to avoid launch stalls
+        loadRemoteOperationsLog()
     }
     
     private func refreshFromExtension() async {
