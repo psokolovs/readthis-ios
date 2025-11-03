@@ -117,7 +117,7 @@ struct ContentView: View {
                         .padding(.trailing, 8) // Extra padding to ensure chips are fully visible
                     }
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
                 .background(Color(.systemGray6))
                 .frame(maxWidth: .infinity)
                 
@@ -130,7 +130,6 @@ struct ContentView: View {
                     contentFilter: selectedContentFilter
                 )
             }
-            .navigationTitle("PSReadThis")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
