@@ -18,110 +18,14 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Enhanced Filter Section (Performance Optimized)
-                VStack(spacing: 12) {
-                    // Status Filter Toggle  
-                    HStack(spacing: 8) {
-                        FilterButton(
-                            title: "📖 To Read",
-                            isSelected: viewModel.currentFilter == .unread,
-                            count: nil
-                        ) {
-                            Task {
-                                viewModel.currentFilter = .unread
-                                selectedContentFilter = "all"  // Reset content filter when switching tabs
-                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                            }
-                        }
-                        
-                        FilterButton(
-                            title: "📚 Archive", 
-                            isSelected: viewModel.currentFilter == .read,
-                            count: nil
-                        ) {
-                            Task {
-                                viewModel.currentFilter = .read
-                                selectedContentFilter = "all"  // Reset content filter when switching tabs
-                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                            }
-                        }
-                        
-                        Spacer()
+                // Compact Beautiful Header
+                CompactHeaderView(
+                    viewModel: viewModel,
+                    selectedContentFilter: $selectedContentFilter,
+                    onSettingsTap: {
+                        isDevMode.toggle()
                     }
-                    .padding(.horizontal, 16)  // Add padding to align with content filters
-                    
-                    // Content Type Filters (Performance Optimized)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ContentFilterChip(
-                                title: "📄 All",
-                                isSelected: selectedContentFilter == "all"
-                            ) {
-                                selectedContentFilter = "all"
-                                Task {
-                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                                }
-                            }
-                            
-                            // Show Starred filter only for Archive
-                            if viewModel.currentFilter == .read {
-                                ContentFilterChip(
-                                    title: "⭐ Starred",
-                                    isSelected: selectedContentFilter == "starred"
-                                ) {
-                                    print("[ContentView] 🌟 STARRED FILTER BUTTON TAPPED!")
-                                    print("[ContentView] 🌟 Setting selectedContentFilter to 'starred'")
-                                    selectedContentFilter = "starred"
-                                    print("[ContentView] 🌟 selectedContentFilter is now: '\(selectedContentFilter)'")
-                                    Task {
-                                        print("[ContentView] 🌟 Calling fetchLinks with contentFilter: '\(selectedContentFilter)'")
-                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                                    }
-                                }
-                            }
-                            
-                            // Show content type filters only for To Read
-                            if viewModel.currentFilter == .unread {
-                                ContentFilterChip(
-                                    title: "🎬 Videos",
-                                    isSelected: selectedContentFilter == "video"
-                                ) {
-                                    selectedContentFilter = "video"
-                                    Task {
-                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                                    }
-                                }
-                                
-                                ContentFilterChip(
-                                    title: "🎵 Audio",
-                                    isSelected: selectedContentFilter == "audio"
-                                ) {
-                                    selectedContentFilter = "audio"
-                                    Task {
-                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                                    }
-                                }
-                                
-                                ContentFilterChip(
-                                    title: "📰 Articles",
-                                    isSelected: selectedContentFilter == "article"
-                                ) {
-                                    selectedContentFilter = "article"
-                                    Task {
-                                        await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.trailing, 8) // Extra padding to ensure chips are fully visible
-                    }
-                }
-                .padding(.vertical, 12)
-                .background(Color(.systemGray6))
-                .frame(maxWidth: .infinity)
-                
-                Divider()
+                )
                 
                 // Enhanced Links List (Performance Optimized)
                 SimpleLinksList(
@@ -130,15 +34,7 @@ struct ContentView: View {
                     contentFilter: selectedContentFilter
                 )
             }
-            .navigationTitle("PSReadThis")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("⚙️") {
-                        isDevMode.toggle()
-                    }
-                }
-            }
+            .navigationBarHidden(true)
             .sheet(isPresented: $isDevMode) {
                 DeveloperModeView(viewModel: viewModel)
             }
@@ -168,6 +64,263 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Compact Beautiful Header
+struct CompactHeaderView: View {
+    @ObservedObject var viewModel: LinksViewModel
+    @Binding var selectedContentFilter: String
+    let onSettingsTap: () -> Void
+    
+    @State private var showContentFilters = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Main Header Row
+            HStack(spacing: 10) {
+                // App Title with icon
+                HStack(spacing: 6) {
+                    Image(systemName: "book.pages")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Text("PSReadThis")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+                }
+                
+                Spacer()
+                
+                // Compact Status Toggle
+                HStack(spacing: 2) {
+                    StatusToggleButton(
+                        icon: "book",
+                        isSelected: viewModel.currentFilter == .unread
+                    ) {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            viewModel.currentFilter = .unread
+                            selectedContentFilter = "all"
+                            Task {
+                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                            }
+                        }
+                    }
+                    
+                    StatusToggleButton(
+                        icon: "archivebox",
+                        isSelected: viewModel.currentFilter == .read
+                    ) {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                            viewModel.currentFilter = .read
+                            selectedContentFilter = "all"
+                            Task {
+                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                            }
+                        }
+                    }
+                }
+                .padding(.all, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(.systemGray5).opacity(0.8))
+                )
+                
+                // Filter Toggle Button
+                Button(action: {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                        showContentFilters.toggle()
+                    }
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(selectedContentFilter != "all" ? Color.accentColor.opacity(0.1) : Color(.systemGray5))
+                            .frame(width: 34, height: 34)
+                        
+                        Image(systemName: showContentFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(selectedContentFilter != "all" ? .accentColor : .secondary)
+                            .rotationEffect(.degrees(showContentFilters ? 180 : 0))
+                    }
+                }
+                
+                // Settings Button
+                Button(action: onSettingsTap) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(.systemGray5))
+                            .frame(width: 34, height: 34)
+                        
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                ZStack {
+                    Color(.systemBackground)
+                    
+                    // Subtle bottom border
+                    VStack {
+                        Spacer()
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 0.5)
+                    }
+                }
+            )
+            
+            // Content Filters (Animated)
+            if showContentFilters {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ModernFilterChip(
+                            title: "All",
+                            icon: "square.grid.2x2",
+                            isSelected: selectedContentFilter == "all"
+                        ) {
+                            selectedContentFilter = "all"
+                            Task {
+                                await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                            }
+                        }
+                        
+                        // Show Starred filter only for Archive
+                        if viewModel.currentFilter == .read {
+                            ModernFilterChip(
+                                title: "Starred",
+                                icon: "star.fill",
+                                isSelected: selectedContentFilter == "starred"
+                            ) {
+                                selectedContentFilter = "starred"
+                                Task {
+                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                }
+                            }
+                        }
+                        
+                        // Show content type filters only for To Read
+                        if viewModel.currentFilter == .unread {
+                            ModernFilterChip(
+                                title: "Videos",
+                                icon: "play.rectangle",
+                                isSelected: selectedContentFilter == "video"
+                            ) {
+                                selectedContentFilter = "video"
+                                Task {
+                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                }
+                            }
+                            
+                            ModernFilterChip(
+                                title: "Audio",
+                                icon: "headphones",
+                                isSelected: selectedContentFilter == "audio"
+                            ) {
+                                selectedContentFilter = "audio"
+                                Task {
+                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                }
+                            }
+                            
+                            ModernFilterChip(
+                                title: "Articles",
+                                icon: "doc.text",
+                                isSelected: selectedContentFilter == "article"
+                            ) {
+                                selectedContentFilter = "article"
+                                Task {
+                                    await viewModel.fetchLinks(reset: true, contentFilter: selectedContentFilter)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+                }
+                .transition(.asymmetric(
+                    insertion: .move(from: .top).combined(with: .opacity),
+                    removal: .move(from: .bottom).combined(with: .opacity)
+                ))
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color(.systemBackground),
+                            Color(.systemBackground).opacity(0.98)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+// MARK: - Status Toggle Button
+struct StatusToggleButton: View {
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .frame(width: 34, height: 34)
+                
+                Image(systemName: isSelected ? "\(icon).fill" : icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(isSelected ? .white : .secondary)
+                    .scaleEffect(isSelected ? 1.0 : 0.9)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isSelected)
+            }
+        }
+    }
+}
+
+// MARK: - Modern Filter Chip
+struct ModernFilterChip: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? Color.accentColor : Color(.systemGray5).opacity(0.8))
+            )
+            .foregroundColor(isSelected ? .white : .secondary)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(
+                        isSelected ? Color.clear : Color(.systemGray4).opacity(0.3),
+                        lineWidth: 0.5
+                    )
+            )
+            .scaleEffect(isSelected ? 1.0 : 0.98)
+            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: isSelected)
+        }
+    }
+}
+
 // MARK: - Enhanced Links List (Performance Optimized)
 struct SimpleLinksList: View {
     @ObservedObject var viewModel: LinksViewModel
@@ -176,9 +329,9 @@ struct SimpleLinksList: View {
     
     private var filteredLinks: [Link] {
         // Remove or comment out excessive debug prints
-        // print("[ContentView] 🚀 FILTERING WITH: '\(contentFilter)' (total links: \(viewModel.links.count))")
+        // print("[ContentView] ?? FILTERING WITH: '\(contentFilter)' (total links: \(viewModel.links.count))")
         guard contentFilter != "all" else {
-            // print("[ContentView] 🚀 RETURNING ALL LINKS: \(viewModel.links.count)")
+            // print("[ContentView] ?? RETURNING ALL LINKS: \(viewModel.links.count)")
             return viewModel.links
         }
         let filtered = viewModel.links.filter { link in
@@ -195,7 +348,7 @@ struct SimpleLinksList: View {
                 return true
             }
         }
-        // print("[ContentView] 🚀 FILTER RESULT: \(filtered.count) links")
+        // print("[ContentView] ?? FILTER RESULT: \(filtered.count) links")
         return filtered
     }
     
@@ -216,10 +369,10 @@ struct SimpleLinksList: View {
                     
                     if isLastLink && viewModel.hasMore {
                         // Show visual indicator that lazy loading triggered
-                        viewModel.lastLazyLoadTrigger = "🚀 Lazy load triggered for: \(link.cleanTitle.prefix(20))..."
+                        viewModel.lastLazyLoadTrigger = "?? Lazy load triggered for: \(link.cleanTitle.prefix(20))..."
                         Task { await viewModel.fetchLinks(contentFilter: contentFilter) }
                     } else {
-                        viewModel.lastLazyLoadTrigger = "❌ Not triggered - isLast: \(isLastLink), hasMore: \(viewModel.hasMore)"
+                        viewModel.lastLazyLoadTrigger = "? Not triggered - isLast: \(isLastLink), hasMore: \(viewModel.hasMore)"
                     }
                 }
             }
@@ -639,7 +792,7 @@ struct DeveloperModeView: View {
                     if let metrics = viewModel.lastPerformanceMetrics {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("⚡ Performance Summary")
+                                Text("? Performance Summary")
                                     .font(.headline)
                                     .fontWeight(.semibold)
                                 Spacer()
@@ -700,7 +853,7 @@ struct DeveloperModeView: View {
                     
                     // Lazy Load Debug Info
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("🔄 Lazy Load Debug")
+                        Text("?? Lazy Load Debug")
                             .font(.headline)
                             .fontWeight(.semibold)
                         
@@ -721,7 +874,7 @@ struct DeveloperModeView: View {
                     
                     // Action Buttons
                     VStack(spacing: 12) {
-                        Button("🔄 Refresh & Measure") {
+                        Button("?? Refresh & Measure") {
                             Task {
                                 await viewModel.fetchLinks(reset: true)
                             }
@@ -732,7 +885,7 @@ struct DeveloperModeView: View {
                         .foregroundColor(.green)
                         .clipShape(Capsule())
                         
-                        Button("🧹 Clear Performance Caches") {
+                        Button("?? Clear Performance Caches") {
                             viewModel.clearPerformanceCaches()
                         }
                         .padding()
@@ -741,7 +894,7 @@ struct DeveloperModeView: View {
                         .foregroundColor(.orange)
                         .clipShape(Capsule())
                         
-                        Button("🔐 Clear Authentication & Retry") {
+                        Button("?? Clear Authentication & Retry") {
                             Task {
                                 await viewModel.clearAuthentication()
                                 dismiss()
@@ -753,7 +906,7 @@ struct DeveloperModeView: View {
                         .foregroundColor(.red)
                         .clipShape(Capsule())
                         
-                        Button("🌐 Test Network Connection") {
+                        Button("?? Test Network Connection") {
                             Task {
                                 await viewModel.testNetworkConnectivity()
                             }
@@ -764,7 +917,7 @@ struct DeveloperModeView: View {
                         .foregroundColor(.blue)
                         .clipShape(Capsule())
                         
-                        Button("📡 Clear Remote Operations Log") {
+                        Button("?? Clear Remote Operations Log") {
                             viewModel.remoteOperationsLog.removeAll()
                         }
                         .padding()
@@ -773,7 +926,7 @@ struct DeveloperModeView: View {
                         .foregroundColor(.purple)
                         .clipShape(Capsule())
                         
-                        Button("⭐ Create Test Starred Link") {
+                        Button("? Create Test Starred Link") {
                             Task {
                                 await viewModel.createTestStarredLink()
                             }
@@ -856,7 +1009,7 @@ struct PerformanceDetailsView: View {
     
     private var performanceTrendSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("📈 Performance Trend")
+            Text("?? Performance Trend")
                 .font(.headline)
                 .fontWeight(.semibold)
             
@@ -914,7 +1067,7 @@ struct QueueDiagnosticsView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack {
-                Text("📦 Queue Diagnostics")
+                Text("?? Queue Diagnostics")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -975,7 +1128,7 @@ struct QueueDiagnosticsView: View {
             
             // Quick Actions
             HStack(spacing: 8) {
-                Button("🔄 Sync Now") {
+                Button("?? Sync Now") {
                     Task {
                         await forceSyncQueues()
                     }
@@ -987,7 +1140,7 @@ struct QueueDiagnosticsView: View {
                 .foregroundColor(.blue)
                 .clipShape(Capsule())
                 
-                Button("🧹 Clear Queues") {
+                Button("?? Clear Queues") {
                     clearAllQueues()
                 }
                 .font(.caption)
@@ -1090,7 +1243,7 @@ struct QueueDetailsView: View {
                     // Extension Queue Details
                     if !queueContents.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("📥 Extension Queue (\(queueContents.count) items)")
+                            Text("?? Extension Queue (\(queueContents.count) items)")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                             
@@ -1128,7 +1281,7 @@ struct QueueDetailsView: View {
                     // Status Queue Details
                     if !statusQueue.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("📊 Status Queue (\(statusQueue.count) items)")
+                            Text("?? Status Queue (\(statusQueue.count) items)")
                                 .font(.headline)
                                 .fontWeight(.semibold)
                             
@@ -1154,7 +1307,7 @@ struct QueueDetailsView: View {
                     }
                     
                     if queueContents.isEmpty && statusQueue.isEmpty {
-                        Text("🎉 All queues are empty!")
+                        Text("?? All queues are empty!")
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.green)
@@ -1193,7 +1346,7 @@ struct RemoteOperationsLogView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack {
-                Text("📡 Remote Operations Log")
+                Text("?? Remote Operations Log")
                     .font(.headline)
                     .fontWeight(.semibold)
                 Spacer()
