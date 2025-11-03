@@ -12,12 +12,12 @@
 			<true/>
 			<key>NSExtensionServiceAllowsTouchBarItem</key>
 			<true/>
-			<key>NSExtensionServiceFinderPreviewIconName</key>
-			<string>NSActionTemplate</string>
-			<key>NSExtensionServiceTouchBarBezelColorName</key>
-			<string>TouchBarBezel</string>
-			<key>NSExtensionServiceTouchBarIconName</key>
-			<string>NSActionTemplate</string>
+		<key>NSExtensionServiceFinderPreviewIconName</key>
+		<string>bookmark.fill</string>
+		<key>NSExtensionServiceTouchBarBezelColorName</key>
+		<string>TouchBarBezel</string>
+		<key>NSExtensionServiceTouchBarIconName</key>
+		<string>bookmark.fill</string>
 		</dict>
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>
@@ -29,8 +29,8 @@
 	<key>CFBundleDisplayName</key>
 	<string>Save for Later</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.15.2</string>
+	<string>1.0.7</string>
 	<key>CFBundleVersion</key>
-	<string>152</string>
+	<string>9</string>
 </dict>
 </plist>
