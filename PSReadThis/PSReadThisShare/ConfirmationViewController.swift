@@ -484,64 +484,51 @@ class ConfirmationViewController: UIViewController {
         // Run comprehensive diagnostics first
         debugPasteboardIssue()
         
-        do {
-            // Try accessing pasteboard with error handling
-            let pasteboard = UIPasteboard.general
-            print("[PSReadThis] 📋 Pasteboard name: \(pasteboard.name)")
-            print("[PSReadThis] 📋 Attempting to access pasteboard...")
+        // Try accessing pasteboard
+        let pasteboard = UIPasteboard.general
+        print("[PSReadThis] 📋 Pasteboard name: \(pasteboard.name)")
+        print("[PSReadThis] 📋 Attempting to access pasteboard...")
+        
+        // Test basic properties first
+        let hasURLs = pasteboard.hasURLs
+        let hasStrings = pasteboard.hasStrings
+        let itemCount = pasteboard.numberOfItems
+        
+        print("[PSReadThis] 📋 hasURLs: \(hasURLs), hasStrings: \(hasStrings), itemCount: \(itemCount)")
+        
+        // Try getting string with explicit error handling
+        var clipboardString: String?
+        
+        if hasStrings {
+            clipboardString = pasteboard.string
+            print("[PSReadThis] 📋 String retrieval: \(clipboardString != nil ? "SUCCESS" : "FAILED")")
+        }
+        
+        // Validate URL if we got a string
+        if let clipboardString = clipboardString,
+           let url = URL(string: clipboardString),
+           url.scheme?.hasPrefix("http") == true {
             
-            // Test basic properties first
-            let hasURLs = pasteboard.hasURLs
-            let hasStrings = pasteboard.hasStrings
-            let itemCount = pasteboard.numberOfItems
+            print("[PSReadThis] ✅ Valid URL found in clipboard: \(url.absoluteString)")
             
-            print("[PSReadThis] 📋 hasURLs: \(hasURLs), hasStrings: \(hasStrings), itemCount: \(itemCount)")
-            
-            // Try getting string with explicit error handling
-            var clipboardString: String?
-            
-            if hasStrings {
-                clipboardString = pasteboard.string
-                print("[PSReadThis] 📋 String retrieval: \(clipboardString != nil ? "SUCCESS" : "FAILED")")
-            }
-            
-            // Validate URL if we got a string
-            if let clipboardString = clipboardString,
-               let url = URL(string: clipboardString),
-               url.scheme?.hasPrefix("http") == true {
-                
-                print("[PSReadThis] ✅ Valid URL found in clipboard: \(url.absoluteString)")
-                
-                // Show confirmation alert before saving
-                DispatchQueue.main.async {
-                    let alert = UIAlertController(
-                        title: "Use Clipboard URL?",
-                        message: "Do you want to save this URL from your clipboard?\n\n\(clipboardString)",
-                        preferredStyle: .alert
-                    )
-                    alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
-                        self.showError()
-                        self.dismissAfterDelay()
-                    })
-                    alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
-                        Task { await self.saveAndShowResult(url: url.absoluteString) }
-                    })
-                    self.present(alert, animated: true, completion: nil)
-                }
-            } else {
-                print("[PSReadThis] ❌ No valid URL found in clipboard")
-                DispatchQueue.main.async {
+            // Show confirmation alert before saving
+            DispatchQueue.main.async {
+                let alert = UIAlertController(
+                    title: "Use Clipboard URL?",
+                    message: "Do you want to save this URL from your clipboard?\n\n\(clipboardString)",
+                    preferredStyle: .alert
+                )
+                alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
                     self.showError()
                     self.dismissAfterDelay()
-                }
+                })
+                alert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+                    Task { await self.saveAndShowResult(url: url.absoluteString) }
+                })
+                self.present(alert, animated: true, completion: nil)
             }
-            
-        } catch let error as NSError {
-            print("[PSReadThis] ❌ Pasteboard access error: \(error)")
-            print("[PSReadThis] ❌ Error domain: \(error.domain)")
-            print("[PSReadThis] ❌ Error code: \(error.code)")
-            print("[PSReadThis] ❌ Error userInfo: \(error.userInfo)")
-            
+        } else {
+            print("[PSReadThis] ❌ No valid URL found in clipboard")
             DispatchQueue.main.async {
                 self.showError()
                 self.dismissAfterDelay()

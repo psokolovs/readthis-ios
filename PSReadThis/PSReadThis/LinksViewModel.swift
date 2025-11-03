@@ -392,7 +392,7 @@ class LinksViewModel: ObservableObject {
             let (token, anonKey, userId) = await getAuthDataOptimized()
             performanceMonitor.markStep("auth_complete")
             
-            let authTime = CFAbsoluteTimeGetCurrent() - authStart
+            _ = CFAbsoluteTimeGetCurrent() - authStart
             
             performanceMonitor.markStep("anon_key_complete")
             
@@ -422,7 +422,7 @@ class LinksViewModel: ObservableObject {
                 }
             }
             
-            let apiTime = CFAbsoluteTimeGetCurrent() - apiStart
+            _ = CFAbsoluteTimeGetCurrent() - apiStart
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 if let http = response as? HTTPURLResponse {
@@ -438,14 +438,14 @@ class LinksViewModel: ObservableObject {
             performanceMonitor.markStep("parsing_complete")
             performanceMonitor.setRecordCount(newLinks.count)
             
-            let parseTime = CFAbsoluteTimeGetCurrent() - parseStart
+            _ = CFAbsoluteTimeGetCurrent() - parseStart
             
             // UI updates
             let uiStart = CFAbsoluteTimeGetCurrent()
             await updateUIOptimized(newLinks: newLinks)
             performanceMonitor.markStep("ui_complete")
             
-            let uiTime = CFAbsoluteTimeGetCurrent() - uiStart
+            _ = CFAbsoluteTimeGetCurrent() - uiStart
             
             // Store performance metrics
             let metrics = performanceMonitor.getMetrics(queueSyncTime: queueSyncTime)

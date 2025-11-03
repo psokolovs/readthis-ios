@@ -149,13 +149,13 @@ struct ContentView: View {
                     Text("Invalid URL")
                 }
             }
-            .onChange(of: selectedURL) { url in
-                if url != nil {
+            .onChange(of: selectedURL) { _, newValue in
+                if newValue != nil {
                     showingSafari = true
                 }
             }
-            .onChange(of: showingSafari) { isShowing in
-                if !isShowing {
+            .onChange(of: showingSafari) { _, newValue in
+                if !newValue {
                     // Reset selectedURL when Safari is dismissed to allow re-tapping the same link
                     selectedURL = nil
                 }
@@ -622,7 +622,9 @@ struct DeveloperModeView: View {
                         Text("Version:")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                        Text("0.15.2 (Enhanced Debug Logging)")
+                        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+                        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+                        Text("\(appVersion) (\(buildNumber))")
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundColor(.blue)

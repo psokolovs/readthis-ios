@@ -2,38 +2,52 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Save for Later</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleSymbolName</key>
+			<string>bookmark.fill</string>
+		</dict>
+	</dict>
+	<key>CFBundleIdentifier</key>
+	<string></string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.15.4</string>
+	<key>CFBundleVersion</key>
+	<string>154</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<string>TRUEPREDICATE</string>
+			<dict>
+				<key>NSExtensionActivationSupportsFileWithMaxCount</key>
+				<integer>0</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<false/>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+			</dict>
 			<key>NSExtensionServiceAllowsFinderPreviewItem</key>
 			<true/>
 			<key>NSExtensionServiceAllowsTouchBarItem</key>
 			<true/>
-			<!-- Use an SF Symbol for the action icon -->
-			<key>NSExtensionServiceIconName</key>
-			<string>bookmark</string>
 			<key>NSExtensionServiceFinderPreviewIconName</key>
 			<string>NSActionTemplate</string>
+			<key>NSExtensionServiceIconName</key>
+			<string>bookmark.fill</string>
 			<key>NSExtensionServiceTouchBarBezelColorName</key>
 			<string>TouchBarBezel</string>
 			<key>NSExtensionServiceTouchBarIconName</key>
-			<string>bookmark</string>
+			<string>bookmark.fill</string>
 		</dict>
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ui-services</string>
 	</dict>
-	<key>CFBundleIdentifier</key>
-	<string></string>
-	<key>CFBundleDisplayName</key>
-	<string>Save for Later</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.15.2</string>
-	<key>CFBundleVersion</key>
-	<string>152</string>
 </dict>
 </plist>

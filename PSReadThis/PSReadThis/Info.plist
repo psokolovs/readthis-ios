@@ -2,20 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>PSReadThis</string>
+	<key>CFBundleExecutable</key>
+	<string>PSReadThis</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.pavels.PSReadThis</string>
 	<key>CFBundleName</key>
 	<string>PSReadThis</string>
-	<key>CFBundleDisplayName</key>
-	<string>PSReadThis</string>
-	<key>CFBundleShortVersionString</key>
-	<string>0.15.2</string>
-	<key>CFBundleVersion</key>
-	<string>152</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleExecutable</key>
-	<string>PSReadThis</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.15.4</string>
+	<key>CFBundleVersion</key>
+	<string>154</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -34,4 +34,4 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
-</plist> 
+</plist>
