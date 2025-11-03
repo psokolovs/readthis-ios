@@ -8,16 +8,18 @@
 	<dict>
 		<key>CFBundlePrimaryIcon</key>
 		<dict>
-			<key>CFBundleSymbolName</key>
-			<string>bookmark.fill</string>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>ExtensionIcon</string>
+			</array>
 		</dict>
 	</dict>
 	<key>CFBundleIdentifier</key>
 	<string></string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.15.4</string>
+	<string>0.16.0</string>
 	<key>CFBundleVersion</key>
-	<string>154</string>
+	<string>155</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>
@@ -38,11 +40,11 @@
 			<key>NSExtensionServiceFinderPreviewIconName</key>
 			<string>NSActionTemplate</string>
 			<key>NSExtensionServiceIconName</key>
-			<string>bookmark.fill</string>
+			<string>ExtensionIcon</string>
 			<key>NSExtensionServiceTouchBarBezelColorName</key>
 			<string>TouchBarBezel</string>
 			<key>NSExtensionServiceTouchBarIconName</key>
-			<string>bookmark.fill</string>
+			<string>ExtensionIcon</string>
 		</dict>
 		<key>NSExtensionMainStoryboard</key>
 		<string>MainInterface</string>
